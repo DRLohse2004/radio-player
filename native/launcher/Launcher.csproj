@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Starter für die portable Radio.exe: Die App hängt als ZIP hinten an dieser .exe.
+    Beim ersten Start einer neuen Version wird sie einmalig nach %LOCALAPPDATA%\RadioPlayer\app\<version>
+    entpackt (mit Ladefenster) – danach startet das Radio sofort.
+    Ziel ist das in Windows 10/11 eingebaute .NET Framework 4.8: winzige .exe, kein Zusatz-Download.
+    Bauen: npm run dist (scripts/build-portable.cjs)
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Radio</AssemblyName>
+    <RootNamespace>RadioLauncher</RootNamespace>
+    <ApplicationIcon>..\..\build\icon.ico</ApplicationIcon>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Product>Radio</Product>
+    <Company>Radio</Company>
+    <Description>Radio</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+</Project>

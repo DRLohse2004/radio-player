@@ -1,0 +1,599 @@
+/* =====================================================================
+   Erweiterungen: Inhaltsart, Merkliste, Verlauf, Einstellungen, Sortieren
+   ===================================================================== */
+
+/* Titelwechsel: Text kurz einblenden */
+.track-info {
+  animation: rise 0.7s ease both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* ---------- Kopfzeile Hauptbereich ---------- */
+
+.stage-actions {
+  display: flex;
+  gap: 4px;
+}
+.icon-button.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.np-station {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ---------- Inhaltsart ---------- */
+
+.kind-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+.kind-badge.kind-music {
+  background: rgba(61, 220, 132, 0.18);
+  color: var(--live);
+}
+.kind-badge.kind-news {
+  background: rgba(80, 140, 255, 0.22);
+  color: #9cc0ff;
+}
+.kind-badge.kind-traffic {
+  background: rgba(255, 181, 71, 0.2);
+  color: var(--warn);
+}
+.kind-badge.kind-ad {
+  background: rgba(190, 110, 255, 0.22);
+  color: #d4a8ff;
+}
+.kind-badge.kind-talk {
+  background: rgba(40, 200, 200, 0.2);
+  color: #7fe3e3;
+}
+
+.segment-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6%;
+  color: #fff;
+  container-type: inline-size;
+  animation: fade-in 0.6s ease;
+}
+.segment-art.kind-news {
+  background: radial-gradient(circle at 30% 25%, #3d6fd6, #172a5c 75%);
+}
+.segment-art.kind-traffic {
+  background: radial-gradient(circle at 30% 25%, #e0a23a, #6b3c0c 75%);
+}
+.segment-art.kind-ad {
+  background: radial-gradient(circle at 30% 25%, #9b5ce0, #3a1a63 75%);
+}
+.segment-art.kind-talk {
+  background: radial-gradient(circle at 30% 25%, #26a6a6, #0d3f45 75%);
+}
+.segment-icon {
+  display: grid;
+  place-items: center;
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  animation: breathe 4s ease-in-out infinite;
+}
+.segment-icon svg {
+  width: 56%;
+  height: 56%;
+}
+.segment-label {
+  font-size: 8cqw;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.segment-art .station-logo.segment-logo {
+  position: absolute;
+  right: 5%;
+  bottom: 5%;
+  width: 16%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 18%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+@keyframes breathe {
+  50% {
+    transform: scale(1.06);
+    background: rgba(255, 255, 255, 0.18);
+  }
+}
+
+/* ---------- Merken ---------- */
+
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.like-button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+.like-button.active {
+  color: var(--accent);
+  border-color: rgba(255, 90, 95, 0.4);
+  background: var(--accent-soft);
+}
+.icon-button.favorite {
+  color: var(--accent);
+}
+
+/* ---------- Verlauf / Merkliste ---------- */
+
+.library {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: min(380px, 92vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.45);
+  animation: slide-in 0.22s ease;
+}
+@keyframes slide-in {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+}
+.library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 10px 16px;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.tabs button.active {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.tabs .count {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+}
+.library-empty {
+  padding: 28px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.track-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px 12px;
+}
+.track-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 12px;
+}
+.track-row:hover {
+  background: var(--surface-2);
+}
+.track-thumb {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--text-faint);
+}
+.track-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.track-meta {
+  flex: 1;
+  min-width: 0;
+}
+.track-row-title,
+.track-row-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.track-row-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.track-row-artist {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.track-row-info {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.track-links {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.track-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+.track-actions .icon-button {
+  width: 30px;
+  height: 30px;
+}
+.library-footer {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Einstellungen ---------- */
+
+.modal.settings {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+.settings-section {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.settings-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+.settings-section h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.toggle-label {
+  display: block;
+  font-weight: 500;
+}
+.toggle-row small {
+  display: block;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.switch {
+  appearance: none;
+  flex-shrink: 0;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.switch:checked {
+  background: var(--accent);
+}
+.switch:checked::after {
+  transform: translateX(18px);
+}
+.schedule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 6px 0 4px;
+  transition: opacity 0.2s;
+}
+.schedule.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.schedule label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.schedule input[type="time"],
+.field select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.field select {
+  height: 40px;
+}
+.days {
+  display: flex;
+  gap: 4px;
+}
+.days button {
+  width: 34px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.days button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---------- Sortieren per Drag & Drop ---------- */
+
+.drag-handle {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  margin-left: 2px;
+  margin-right: -8px;
+  color: var(--text-faint);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 0.15s;
+}
+.station-item:hover .drag-handle {
+  opacity: 1;
+}
+.station-item.dragging {
+  opacity: 0.4;
+}
+.station-item.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.station-item.drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* =====================================================================
+   Vollbild: dezente Bewegung und Einbrennschutz
+   ===================================================================== */
+
+.fs-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Pixel-Shift: der ganze Inhalt wandert jede Minute ein paar Pixel – sehr langsam */
+  transition: transform 6s ease-in-out;
+}
+
+.fullscreen > .fs-exit {
+  position: absolute;
+  right: 3vw;
+  bottom: 4vh;
+  z-index: 3;
+  transition: opacity 0.5s ease;
+}
+
+.fullscreen > .visualizer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  width: 100%;
+  height: 15vh;
+  pointer-events: none;
+  opacity: 0.6;
+  -webkit-mask-image: linear-gradient(to top, #000 40%, transparent);
+  mask-image: linear-gradient(to top, #000 40%, transparent);
+}
+
+.fs-main {
+  transition: opacity 0.9s ease;
+}
+.fs-main.fading {
+  opacity: 0;
+}
+.fs-main.swapped {
+  flex-direction: row-reverse;
+}
+
+/* Cover schwebt ganz leicht */
+.fs-cover-wrap {
+  flex-shrink: 0;
+  animation: float 11s ease-in-out infinite alternate;
+}
+@keyframes float {
+  from {
+    transform: translateY(-1vh) rotate(-0.5deg);
+  }
+  to {
+    transform: translateY(1vh) rotate(0.5deg);
+  }
+}
+
+.fs-weather {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(16px, 2.4vh, 28px);
+  color: rgba(255, 255, 255, 0.85);
+}
+.fs-temp {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fs-place {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8em;
+}
+
+.fs-recent {
+  margin-top: 4vh;
+  max-width: 100%;
+}
+.fs-recent-label {
+  margin-bottom: 1vh;
+  font-size: clamp(11px, 1.4vh, 16px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+.fs-recent-item {
+  display: flex;
+  gap: 1.2vw;
+  font-size: clamp(13px, 1.8vh, 22px);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+.fs-recent-time {
+  color: rgba(255, 255, 255, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+.fs-recent-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fs-recent-text span {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Hintergrund ohne Cover: Farbe passend zur Inhaltsart */
+.fs-gradient.kind-news {
+  background:
+    radial-gradient(circle at 25% 30%, rgba(80, 140, 255, 0.4), transparent 45%),
+    radial-gradient(circle at 75% 70%, rgba(40, 70, 160, 0.35), transparent 50%),
+    #07080b;
+}
+.fs-gradient.kind-traffic {
+  background:
+    radial-gradient(circle at 25% 30%, rgba(255, 181, 71, 0.35), transparent 45%),
+    radial-gradient(circle at 75% 70%, rgba(160, 80, 20, 0.35), transparent 50%),
+    #07080b;
+}
+.fs-gradient.kind-ad {
+  background:
+    radial-gradient(circle at 25% 30%, rgba(190, 110, 255, 0.35), transparent 45%),
+    radial-gradient(circle at 75% 70%, rgba(90, 40, 160, 0.35), transparent 50%),
+    #07080b;
+}
+.fs-gradient.kind-talk {
+  background:
+    radial-gradient(circle at 25% 30%, rgba(40, 200, 200, 0.3), transparent 45%),
+    radial-gradient(circle at 75% 70%, rgba(20, 90, 110, 0.35), transparent 50%),
+    #07080b;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .fs-main.swapped {
+    flex-direction: column-reverse;
+  }
+  .fs-recent-item {
+    justify-content: center;
+  }
+}
+
+/* Wer reduzierte Bewegung eingestellt hat, bekommt sie */
+@media (prefers-reduced-motion: reduce) {
+  .fs-cover-wrap,
+  .fs-backdrop img,
+  .fs-gradient,
+  .segment-icon {
+    animation: none;
+  }
+}
+
+/* Senderliste nur im Radio-Reiter: ohne sie nimmt der Hauptbereich die volle Breite ein */
+.app.no-sidebar {
+  grid-template-columns: 1fr;
+}
+@media (max-width: 900px) {
+  .app.no-sidebar {
+    grid-template-columns: 1fr;
+  }
+}

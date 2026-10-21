@@ -1,0 +1,22 @@
+# Abhängigkeiten (per npm install wiederherstellbar)
+node_modules/
+node_modules.zip
+
+# Build-Ergebnisse
+dist/
+release/
+
+# Persönliche Einstellungen der portablen App (liegen sonst in release/)
+RadioPlayer-Daten/
+
+# Sonstiges
+*.log
+.DS_Store
+Thumbs.db
+
+# .NET-Zwischenstände des Bluetooth-Hilfsprogramms
+native/**/bin/
+native/**/obj/
+
+# Lokale Einstellungen der Entwicklungsumgebung
+.claude/

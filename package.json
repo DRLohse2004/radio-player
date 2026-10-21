@@ -1,0 +1,90 @@
+{
+  "name": "radio-player",
+  "private": true,
+  "version": "1.5.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && node scripts/build-portable.cjs",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "build:bt": "dotnet publish native/bt-receiver/bt-receiver.csproj -c Release -o vendor/bt-receiver",
+    "build:ico": "electron scripts/make-ico.cjs"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0",
+    "vitest": "3.2.7"
+  },
+  "description": "Internetradio-Player",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "local.radioplayer",
+    "productName": "Radio",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "Radio-${version}-portable.exe"
+    },
+    "extraResources": [
+      {
+        "from": "vendor/go-librespot",
+        "to": "go-librespot"
+      },
+      {
+        "from": "vendor/bt-receiver",
+        "to": "bt-receiver"
+      },
+      {
+        "from": "vendor/yt-dlp",
+        "to": "yt-dlp"
+      }
+    ],
+    "electronLanguages": [
+      "de",
+      "en-US"
+    ]
+  },
+  "dependencies": {
+    "hls.js": "1.6.13",
+    "multicast-dns": "7.2.5",
+    "qrcode": "1.5.4"
+  },
+  "license": "MIT",
+  "author": "Dominik Lohse"
+}

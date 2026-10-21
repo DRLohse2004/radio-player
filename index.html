@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Radio</title>
+    <style>
+      /* Ladebildschirm, bis die Oberfläche geladen ist – steht sofort, ohne auf JavaScript zu warten */
+      html, body, #root { height: 100%; margin: 0; background: #0d0f14; }
+      .boot { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; color: #9198a8; }
+      .boot img { width: 84px; height: 84px; border-radius: 20px; box-shadow: 0 20px 50px rgba(255, 90, 95, 0.25); animation: boot-pulse 1.6s ease-in-out infinite; }
+      .boot strong { display: block; color: #eef0f5; font-size: 22px; text-align: center; }
+      @keyframes boot-pulse { 50% { transform: scale(0.94); opacity: 0.8; } }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot"><img src="./icon.svg" alt="" /><div><strong>Radio</strong>Oberfläche wird geladen …</div></div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

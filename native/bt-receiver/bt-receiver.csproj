@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Bluetooth-Audio-Empfänger für die Radio-App: macht den PC über die Windows-API
+    AudioPlaybackConnection zum Bluetooth-Lautsprecher (A2DP-Senke) und spricht per
+    JSON-Zeilen über stdin/stdout mit dem Electron-Hauptprozess.
+    Bauen: npm run build:bt  (legt die .exe in vendor/bt-receiver ab)
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>bt-receiver</AssemblyName>
+    <RootNamespace>BtReceiver</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- eigenständig lauffähig, ohne installiertes .NET auf dem Ziel-PC -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+</Project>
