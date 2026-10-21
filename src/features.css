@@ -578,6 +578,30 @@
   }
 }
 
+/* Niedrige Fenster und Hochformat: "Zuvor" weglassen und enger setzen, damit nichts unter den QR-Code und die Tasten rutscht */
+@media (max-height: 640px), (max-aspect-ratio: 1/1) {
+  .fs-recent {
+    display: none;
+  }
+  .fs-divider {
+    margin: 2.5vh 0;
+  }
+}
+@media (max-aspect-ratio: 1/1) {
+  .fs-main {
+    gap: 2.5vh;
+  }
+  .fs-cover {
+    width: min(30vh, 70vw);
+  }
+  .fs-clock {
+    font-size: clamp(56px, 11vh, 180px);
+  }
+  .fs-divider {
+    margin: 2vh auto;
+  }
+}
+
 /* Wer reduzierte Bewegung eingestellt hat, bekommt sie */
 @media (prefers-reduced-motion: reduce) {
   .fs-cover-wrap,

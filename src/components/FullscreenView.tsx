@@ -108,9 +108,16 @@ export function FullscreenView(props: Props) {
             )}
           </div>
         </main>
+      </div>
 
+      <button className="icon-button fs-exit" onClick={props.onExit} title="Vollbild beenden (Esc)">
+        <CollapseIcon size={22} />
+      </button>
+
+      <footer className="fs-bottom">
+        {/* QR-Code in der unteren Zeile neben den Tasten, damit er nie über Cover oder Text liegt */}
         {props.qr && (
-          <div className="fs-qr">
+          <div className="fs-qr" style={{ transform: `translate(${shift.x}px, ${shift.y}px)` }}>
             {/* SVG stammt aus der qrcode-Bibliothek im Hauptprozess */}
             <div className="fs-qr-code" dangerouslySetInnerHTML={{ __html: props.qr }} />
             <div className="fs-qr-text">
@@ -119,13 +126,6 @@ export function FullscreenView(props: Props) {
             </div>
           </div>
         )}
-      </div>
-
-      <button className="icon-button fs-exit" onClick={props.onExit} title="Vollbild beenden (Esc)">
-        <CollapseIcon size={22} />
-      </button>
-
-      <footer className="fs-bottom">
         <Controls
           isPlaying={isPlaying}
           disabled={!station}

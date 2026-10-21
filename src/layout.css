@@ -530,10 +530,11 @@
 }
 
 .fs-qr {
-  position: absolute;
-  left: 4vw;
-  bottom: 5vh;
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
   display: flex;
+  transition: transform 6s ease-in-out;
   align-items: center;
   gap: 14px;
   padding: 10px 16px 10px 10px;
@@ -556,6 +557,11 @@
 .fs-qr-text span {
   font-size: 13px;
   opacity: 0.7;
+}
+@media (max-width: 900px) {
+  .fs-qr-text {
+    display: none;
+  }
 }
 
 .yt-wishes {
