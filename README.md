@@ -148,6 +148,10 @@ Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild
 
 > Findet die Suche den Host nicht (z. B. weil er in einem anderen Netz hängt), seine Adresse eintragen – sie steht beim Host im Room-Fenster. Mithören geht für Radiosender und YouTube; Spotify, AirPlay und Bluetooth kommen nur beim Host an und laufen dort weiter.
 
+### Reiter ausblenden
+
+Unter **Einstellungen → Reiter** haken Sie an, welche Reiter oben zu sehen sind. Wer z. B. nur Radio und YouTube braucht, blendet Spotify, AirPlay und Bluetooth aus – deren Empfänger laufen dann auch nicht. Die Einstellungen dazu bleiben erhalten; ein Reiter bleibt immer sichtbar.
+
 ### Automatisch starten
 
 Unter **Einstellungen** (Zahnrad):

@@ -28,7 +28,7 @@ import { StationStore } from './components/StationStore';
 import { findStationLogo } from './logo';
 import { parseStreamTitle } from './metadata';
 import { isSpotifyPlaying, useSpotify } from './spotify';
-import type { HostListen, NowPlaying, PlayerStatus, Preferences, RoomPrefs, Station, StoreStation, Track, YouTubeItem } from './types';
+import type { HostListen, NowPlaying, PlayerStatus, Preferences, RoomPrefs, SourceTab, Station, StoreStation, Track, YouTubeItem } from './types';
 import './App.css';
 import './features.css';
 import './store.css';
@@ -63,9 +63,17 @@ const DEFAULT_PREFS: Preferences = {
   },
   autoUpdate: true,
   room: { open: false, name: '', join: null, mode: 'listen', volume: 0.7, clientId: '' },
+  tabs: { radio: true, youtube: true, spotify: true, airplay: true, bluetooth: true },
 };
 
-type Tab = 'radio' | 'youtube' | 'spotify' | 'airplay' | 'bluetooth';
+type Tab = SourceTab;
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'radio', label: 'Radio' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'spotify', label: 'Spotify' },
+  { id: 'airplay', label: 'AirPlay' },
+  { id: 'bluetooth', label: 'Bluetooth' },
+];
 const YOUTUBE_URL = /^https?:\/\/((www|m|music)\.)?(youtube\.com|youtu\.be)\//i;
 const SPOTIFY_STATION: Station = { id: 'spotify', name: 'Spotify Connect', url: '' };
 
@@ -155,6 +163,7 @@ export default function App() {
         airplay: { ...DEFAULT_PREFS.airplay, ...settings?.prefs?.airplay },
         remote: { ...DEFAULT_PREFS.remote, ...settings?.prefs?.remote },
         room: { ...DEFAULT_PREFS.room, ...settings?.prefs?.room },
+        tabs: { ...DEFAULT_PREFS.tabs, ...settings?.prefs?.tabs },
       };
       if (!loadedPrefs.room.clientId) loadedPrefs.room.clientId = newClientId();
       // Im Room hört man mit statt selbst zu starten
@@ -469,7 +478,7 @@ export default function App() {
     api.getHostname().then(setHostname);
   }, []);
 
-  const spotify = useSpotify(prefs.spotify, settingsLoaded);
+  const spotify = useSpotify({ ...prefs.spotify, enabled: prefs.spotify.enabled && prefs.tabs.spotify }, settingsLoaded);
   const sp = spotify.state;
   const spotifyPlaying = isSpotifyPlaying(sp);
   const spotifyDefaultName = `Radio ${hostname}`;
@@ -564,7 +573,7 @@ export default function App() {
 
   // --- Bluetooth-Empfang -------------------------------------------------------------
 
-  const bt = useBluetooth(prefs.bluetooth.enabled, settingsLoaded);
+  const bt = useBluetooth(prefs.bluetooth.enabled && prefs.tabs.bluetooth, settingsLoaded);
   const btDevice = bt.connected;
   const btMedia = btDevice ? bt.state.media : null;
   const btPlaying = !!btDevice && (btMedia ? btMedia.playing : true);
@@ -647,7 +656,7 @@ export default function App() {
 
   // --- AirPlay ------------------------------------------------------------------------
 
-  const ap = useAirPlay(prefs.airplay.enabled, prefs.airplay.name, settingsLoaded);
+  const ap = useAirPlay(prefs.airplay.enabled && prefs.tabs.airplay, prefs.airplay.name, settingsLoaded);
   const apSession = !!ap.state.client;
   const apPlaying = apSession && ap.state.playing;
 
@@ -824,6 +833,10 @@ export default function App() {
     airplay: apSession,
     bluetooth: !!btDevice,
   };
+  // Offener Reiter wurde ausgeblendet: auf den ersten sichtbaren wechseln
+  useEffect(() => {
+    if (!prefs.tabs[tab]) setTab(TABS.find((t) => prefs.tabs[t.id])?.id ?? 'radio');
+  }, [prefs.tabs, tab]);
   const view: Tab = sourceActive[source] ? source : tab;
 
   const onSpotifyTab = view === 'spotify';
@@ -1095,6 +1108,14 @@ export default function App() {
   const setSidebarOpen = (open: boolean) => setPrefs((p) => ({ ...p, sidebarOpen: open }));
   const closeSidebar = () => setSidebarOpen(false);
   const volumeStyle = { '--fill': `${ui.volume * 100}%` } as CSSProperties;
+  const visibleTabs = TABS.filter((t) => prefs.tabs[t.id]);
+  const tabPlaying: Record<Tab, boolean> = {
+    radio: wantPlay,
+    youtube: ytPlaying,
+    spotify: spotifyPlaying,
+    airplay: apSession,
+    bluetooth: !!btDevice,
+  };
 
   return (
     <div className={`app${prefs.sidebarOpen ? ' sidebar-open' : ''}`}>
@@ -1231,28 +1252,18 @@ export default function App() {
             </div>
           )}
           </div>
-          <div className="tabs stage-tabs" role="tablist">
-            <button role="tab" className={tab === 'radio' ? 'active' : ''} onClick={() => setTab('radio')}>
-              Radio
-              {wantPlay && <span className="tab-dot" />}
-            </button>
-            <button role="tab" className={tab === 'youtube' ? 'active' : ''} onClick={() => setTab('youtube')}>
-              YouTube
-              {ytPlaying && <span className="tab-dot youtube" />}
-            </button>
-            <button role="tab" className={tab === 'spotify' ? 'active' : ''} onClick={() => setTab('spotify')}>
-              Spotify
-              {spotifyPlaying && <span className="tab-dot spotify" />}
-            </button>
-            <button role="tab" className={tab === 'airplay' ? 'active' : ''} onClick={() => setTab('airplay')}>
-              AirPlay
-              {apSession && <span className="tab-dot airplay" />}
-            </button>
-            <button role="tab" className={tab === 'bluetooth' ? 'active' : ''} onClick={() => setTab('bluetooth')}>
-              Bluetooth
-              {btDevice && <span className="tab-dot bluetooth" />}
-            </button>
-          </div>
+          {visibleTabs.length > 1 ? (
+            <div className="tabs stage-tabs" role="tablist">
+              {visibleTabs.map(({ id, label }) => (
+                <button key={id} role="tab" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+                  {label}
+                  {tabPlaying[id] && <span className={`tab-dot${id === 'radio' ? '' : ` ${id}`}`} />}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div />
+          )}
           <div className="stage-actions">
             <button
               className={`icon-button${libraryOpen ? ' active' : ''}`}

@@ -34,7 +34,11 @@ export interface Preferences {
   autoUpdate: boolean;
   /** Rooms: mehrere Radios zusammenschließen */
   room: RoomPrefs;
+  /** sichtbare Reiter – ausgeblendete Empfänger (Spotify, AirPlay, Bluetooth) laufen nicht */
+  tabs: Record<SourceTab, boolean>;
 }
+
+export type SourceTab = 'radio' | 'youtube' | 'spotify' | 'airplay' | 'bluetooth';
 
 export interface RoomPrefs {
   /** dieses Radio ist Host und lässt andere Radios beitreten */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, isDesktop } from '../api';
-import type { Preferences, UpdateState } from '../types';
+import type { Preferences, SourceTab, UpdateState } from '../types';
 import { CloseIcon } from './Icons';
 
 interface Props {
@@ -22,6 +22,14 @@ const DAYS: [number, string][] = [
 ];
 
 const SWAP_OPTIONS = [2, 5, 10, 15, 30];
+
+const TAB_OPTIONS: { id: SourceTab; label: string; hint?: string }[] = [
+  { id: 'radio', label: 'Radio' },
+  { id: 'youtube', label: 'YouTube', hint: 'Wünsche von der Fernbedienung spielen trotzdem.' },
+  { id: 'spotify', label: 'Spotify', hint: 'Ausgeblendet ist Spotify Connect aus.' },
+  { id: 'airplay', label: 'AirPlay', hint: 'Ausgeblendet ist der AirPlay-Empfang aus.' },
+  { id: 'bluetooth', label: 'Bluetooth', hint: 'Ausgeblendet ist der Bluetooth-Empfang aus.' },
+];
 
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange(v: boolean): void; label: string; hint?: string }) {
   return (
@@ -61,6 +69,30 @@ export function SettingsDialog({ prefs, update, onChange, onClose }: Props) {
             <CloseIcon size={18} />
           </button>
         </header>
+
+        <section className="settings-section">
+          <h3>Reiter</h3>
+          <p className="muted small">Was Sie nicht brauchen, blenden Sie aus – die Einstellungen dazu bleiben erhalten.</p>
+          <div className="tab-choices">
+            {TAB_OPTIONS.map(({ id, label, hint }) => {
+              const last = prefs.tabs[id] && Object.values(prefs.tabs).filter(Boolean).length === 1;
+              return (
+                <label key={id} className={`tab-choice${last ? ' disabled' : ''}`} title={last ? 'Mindestens ein Reiter bleibt sichtbar.' : hint}>
+                  <input
+                    type="checkbox"
+                    checked={prefs.tabs[id]}
+                    disabled={last}
+                    onChange={(e) => set('tabs', { ...prefs.tabs, [id]: e.target.checked })}
+                  />
+                  <span>
+                    {label}
+                    {hint && <small>{hint}</small>}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="settings-section">
           <h3>Updates</h3>
