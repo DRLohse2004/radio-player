@@ -84,7 +84,14 @@ export interface SearchResult {
 }
 
 /** Beim Mithören dasselbe wie der Host abspielen */
-export function useListen(audioRef: React.RefObject<HTMLAudioElement>, listen: HostListen | null, playing: boolean, volume: number) {
+export function useListen(
+  audioRef: React.RefObject<HTMLAudioElement>,
+  listen: HostListen | null,
+  playing: boolean,
+  volume: number,
+  /** Lautstärke-Regler der WebAudio-Kette (für den Visualizer); ohne: direkt am Element */
+  gain: GainNode | null = null,
+) {
   const [status, setStatus] = useState<PlayerStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -95,8 +102,10 @@ export function useListen(audioRef: React.RefObject<HTMLAudioElement>, listen: H
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (audio) audio.volume = volume;
-  }, [audioRef, volume]);
+    if (!audio) return;
+    audio.volume = gain ? 1 : volume;
+    if (gain) gain.gain.setTargetAtTime(volume, gain.context.currentTime, 0.05);
+  }, [audioRef, volume, gain]);
 
   useEffect(() => {
     const audio = audioRef.current;

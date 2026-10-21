@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { isDesktop } from '../api';
+import type { AudioGraph } from '../audio';
 import { useListen, type SearchResult, type useRoom } from '../room';
-import type { RoomPrefs, Station } from '../types';
-import { CloseIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SidebarIcon, VolumeIcon } from './Icons';
+import type { PlayerStatus, RoomPrefs, Station, Track } from '../types';
+import { FullscreenView } from './FullscreenView';
+import { CloseIcon, ExpandIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SidebarIcon, VolumeIcon } from './Icons';
 import { Controls, Cover } from './Player';
 import { StationLogo } from './StationLogo';
 
@@ -14,16 +17,47 @@ interface Props {
   onSidebar(open: boolean): void;
   onChange(patch: Partial<RoomPrefs>): void;
   onOpenDialog(): void;
+  fullscreen: boolean;
+  onFullscreen(open: boolean): void;
+  /** Vollbild-Einstellungen dieses Radios */
+  display: { weatherCity: string; swapMinutes: number; visualizer: boolean };
 }
 
 const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** Ansicht eines Radios, das einem Room beigetreten ist: zeigt und steuert den Host */
-export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpenDialog }: Props) {
+export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpenDialog, fullscreen, onFullscreen, display }: Props) {
   const host = room.host;
   const audioRef = useRef<HTMLAudioElement>(null);
   const listening = prefs.mode === 'listen';
-  const listen = useListen(audioRef, listening ? host?.listen ?? null : null, !!host?.playing, prefs.volume);
+
+  // Eigene WebAudio-Kette fürs Mithören, damit der Visualizer im Vollbild etwas zu sehen hat
+  const [graph, setGraph] = useState<AudioGraph | null>(null);
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!isDesktop || !audio) return;
+    try {
+      const context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.85;
+      const gain = context.createGain();
+      context.createMediaElementSource(audio).connect(analyser);
+      analyser.connect(gain);
+      gain.connect(context.destination);
+      setGraph({ context, analyser, gain });
+      return () => {
+        context.close();
+      };
+    } catch {
+      // ohne Visualizer weiter
+    }
+  }, []);
+
+  const listen = useListen(audioRef, listening ? host?.listen ?? null : null, !!host?.playing, prefs.volume, graph?.gain ?? null);
+  useEffect(() => {
+    if (host?.playing) graph?.context.resume().catch(() => {});
+  }, [graph, host?.playing]);
   const [message, setMessage] = useState<string | null>(null);
   const [panel, setPanel] = useState<'stations' | 'youtube' | 'wishes'>('stations');
   useEffect(() => {
@@ -64,11 +98,60 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
       : room.status === 'error'
         ? room.error ?? 'Verbindung verloren'
         : 'Verbinde mit Host …';
+  // Vollbild: F11 umschalten, Esc beendet
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        onFullscreen(!fullscreen);
+      } else if (e.key === 'Escape' && fullscreen) onFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen, onFullscreen]);
+
+  // „Zuvor“ im Vollbild: die letzten Titel, die beim Host liefen, seit dieses Radio verbunden ist
+  const [history, setHistory] = useState<Track[]>([]);
+  const trackKey = host?.playing && host.title ? `${host.artist ?? ''}|${host.title}` : null;
+  useEffect(() => {
+    if (!trackKey || !host?.title) return;
+    const track: Track = {
+      id: `h-${Date.now().toString(36)}`,
+      artist: host.artist ?? '',
+      title: host.title,
+      album: host.album ?? null,
+      cover: host.cover ?? null,
+      station: host.sourceName ?? '',
+      time: new Date().toISOString(),
+    };
+    setHistory((list) => (list[0]?.title === track.title && list[0]?.artist === track.artist ? list : [track, ...list].slice(0, 20)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackKey]);
+  const fsStatus: PlayerStatus = listening && host?.playing && !notListenable ? listen.status : host?.playing ? 'playing' : 'idle';
+
   const chipClass = room.status === 'error' || listen.status === 'error' ? 'error' : room.status === 'connected' ? (host?.playing ? 'playing' : 'idle') : 'loading';
 
   return (
     <>
-      <audio ref={audioRef} preload="none" {...listen.events} />
+      <audio ref={audioRef} preload="none" crossOrigin={isDesktop ? 'anonymous' : undefined} {...listen.events} />
+
+      {fullscreen && (
+        <FullscreenView
+          station={station}
+          nowPlaying={nowPlaying}
+          status={fsStatus}
+          isPlaying={!!host?.playing}
+          history={history}
+          weatherCity={display.weatherCity}
+          swapMinutes={display.swapMinutes}
+          analyser={listening ? graph?.analyser ?? null : null}
+          showVisualizer={display.visualizer}
+          onToggle={() => run('toggle')}
+          onPrev={() => run('prev')}
+          onNext={() => run('next')}
+          onExit={() => onFullscreen(false)}
+        />
+      )}
 
       {sidebarOpen && (
         <aside className="sidebar room-sidebar">
@@ -160,6 +243,9 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
           <div className="stage-actions">
             <button className="icon-button active" onClick={onOpenDialog} title="Room">
               <RoomIcon size={20} />
+            </button>
+            <button className="icon-button" onClick={() => onFullscreen(true)} title="Vollbild (F11)">
+              <ExpandIcon size={20} />
             </button>
           </div>
         </header>

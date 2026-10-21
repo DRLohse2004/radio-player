@@ -1120,6 +1120,9 @@ export default function App() {
           onSidebar={setSidebarOpen}
           onChange={setRoom}
           onOpenDialog={() => setRoomOpen(true)}
+          fullscreen={fullscreen}
+          onFullscreen={setFullscreen}
+          display={{ weatherCity: prefs.weatherCity, swapMinutes: prefs.swapMinutes, visualizer: prefs.visualizer }}
         />
       ) : (
       <>
