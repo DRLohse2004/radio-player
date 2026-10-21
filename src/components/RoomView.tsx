@@ -71,7 +71,11 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
   const run = (action: string, value?: unknown) =>
     room.command(action, value).catch((err: Error) => setMessage(err.message));
 
-  const station: Station | null = host ? { id: 'host', name: host.sourceName || prefs.join?.name || 'Host', url: '' } : null;
+  // Senderlogo des Hosts als Ersatz, wenn der Titel kein Cover hat – wie im normalen Radio
+  const hostStation = host?.stations?.find((st) => st.id === host.currentStationId);
+  const station: Station | null = host
+    ? { id: 'host', name: host.sourceName || prefs.join?.name || 'Host', url: '', logo: hostStation?.logo ?? undefined }
+    : null;
   const nowPlaying = host?.title
     ? { raw: host.title, kind: 'music' as const, artist: host.artist ?? null, title: host.title, album: host.album ?? null, cover: host.cover ?? null }
     : null;
