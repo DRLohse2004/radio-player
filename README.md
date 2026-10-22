@@ -30,7 +30,7 @@
 - 🎧 **Rooms:** Mehrere Radios schließen sich zusammen. Ein PC ist der Host (z. B. der mit den Lautsprechern), alle anderen hören am eigenen Platz über Kopfhörer mit oder steuern ihn nur – ohne selbst Ton abzuspielen.
 - 📲 **Fernbedienung übers Handy:** QR-Code scannen – Kollegen steuern Lautstärke und Wiedergabe, wechseln den Sender und wünschen sich Songs von YouTube. Ohne App, auf iPhone und Android.
 - ❤️ **Verlauf & Merkliste:** Welcher Song lief gerade? Im Verlauf nachsehen, Songs merken und direkt bei Spotify oder YouTube suchen.
-- 🎨 **Designs:** Neben dem Standard-Design gibt es sechs weitere – vom hellen Kofferradio mit Senderskala über den Röhrenempfänger mit VU-Metern bis zur Fallblatt-Anzeigetafel.
+- 🎨 **Designs:** Neben dem Standard-Design gibt es sieben weitere – vom hellen Kofferradio mit Senderskala über den Röhrenempfänger mit VU-Metern bis zur Fallblatt-Anzeigetafel und zur modernen Konsole.
 - ⏰ **Zeitplan:** Zum Beispiel Montag bis Freitag um 8 Uhr automatisch an und um 17 Uhr aus.
 
 ## Installation
@@ -56,7 +56,7 @@ In der Mitte steht immer der Player. Er zeigt, was gerade läuft – auch wenn S
 ### Sender hören und verwalten
 
 - **Sender anklicken** – er spielt sofort.
-- **Leertaste** = Pause/Weiter, **Pfeiltasten ← →** = vorheriger/nächster Sender.
+- **Leertaste** = Pause/Weiter, **Pfeiltasten ← →** = vorheriger/nächster Sender, **↑ ↓** = Lautstärke, **1–9** = Sender direkt. Alle Tastenkürzel stehen unter **Einstellungen → Tastenkürzel** und gelten in jedem Design.
 - Weitere Sender finden Sie über **„Sender entdecken“** unten links.
 - Eigene Sender fügen Sie mit **„+“** hinzu (Name und Stream-Adresse genügen – das Logo sucht das Radio selbst).
 - Mit der Maus über einen Sender fahren, um ihn zu **bearbeiten** oder zu **löschen**. Die Reihenfolge ändern Sie per **Ziehen**.
@@ -163,8 +163,9 @@ Unter **Einstellungen → Design** wählen Sie das Aussehen. Das **Standard**-De
 - **Plakat** – Knallgelb, dicke Rahmen, riesige Schrift und bunte Senderkacheln
 - **Wohnzimmer** – dunkles Olivgrün mit Senderregal aus Eiche
 - **Anzeigetafel** – Titel als Fallblattanzeige, Sender als Tafel wie am Bahnhof
+- **Terminal** – moderne Konsole in JetBrains Mono; jeder Knopf zeigt sein Tastenkürzel, alles bleibt mit der Maus bedienbar
 
-Skala, Tasten, Regal und Tafel zeigen die ersten acht Sender; der laufende ist immer dabei. Alle Schriften sind in die App eingebaut und funktionieren auch offline.
+Skala, Tasten, Regal, Tafel und Terminal zeigen die ersten acht Sender; der laufende ist immer dabei. Alle Schriften sind in die App eingebaut und funktionieren auch offline.
 
 ### Automatisch starten
 

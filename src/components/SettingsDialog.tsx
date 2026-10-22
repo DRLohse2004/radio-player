@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, isDesktop } from '../api';
+import { SHORTCUTS } from '../shortcuts';
 import { THEMES } from '../themes';
 import type { Preferences, SourceTab, UpdateState } from '../types';
 import { CloseIcon } from './Icons';
@@ -232,6 +233,21 @@ export function SettingsDialog({ prefs, update, onChange, onClose }: Props) {
               onChange={(v) => set('visualizer', v)}
             />
           )}
+        </section>
+
+        <section className="settings-section">
+          <h3>Tastenkürzel</h3>
+          <dl className="shortcut-list">
+            {SHORTCUTS.map(({ keys, label }) => (
+              <div key={label} className="shortcut-row">
+                <dt>
+                  {keys.map((k) => (k === '…' ? <span key={k}>–</span> : <kbd key={k}>{k}</kbd>))}
+                </dt>
+                <dd>{label}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="shortcut-note">Gilt in allen Designs, nur nicht beim Tippen in einem Eingabefeld. Im Room steuern Leertaste, Pfeile und 1–9 den Host; dazu gehen S, Komma und F11.</p>
         </section>
 
         <footer className="modal-footer">

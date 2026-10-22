@@ -86,10 +86,12 @@ export function TuningScale({ theme, stations, currentId, onSelect }: ScaleProps
 
 interface DeckProps extends ScaleProps {
   playing: boolean;
+  /** Alle Sender – für die Nummern der Tasten 1–9 */
+  all: Station[];
 }
 
 /** Senderwahl unter dem Player – je nach Design als Tasten, Kacheln, Regal oder Tafel */
-export function StationDeck({ theme, stations, currentId, playing, onSelect }: DeckProps) {
+export function StationDeck({ theme, stations, all, currentId, playing, onSelect }: DeckProps) {
   if (theme === 'tafel') {
     return (
       <div className="station-board">
@@ -112,6 +114,32 @@ export function StationDeck({ theme, stations, currentId, playing, onSelect }: D
                   {s.name}
                 </span>
                 <span className="board-status">{active ? (playing ? 'Läuft' : 'Pause') : 'Bereit'}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (theme === 'terminal') {
+    return (
+      <div className="station-deck deck-terminal">
+        <div className="deck-path" aria-hidden="true">
+          <b>~/sender</b> klicken oder Taste 1–9
+        </div>
+        <div className="deck-keys">
+          {stations.map((s) => {
+            const nr = all.indexOf(s) + 1;
+            return (
+              <button
+                key={s.id}
+                className={`deck-key${s.id === currentId ? ' active' : ''}`}
+                onClick={() => onSelect(s.id)}
+                title={nr <= 9 ? `${s.name} (${nr})` : s.name}
+              >
+                <span className="deck-nr">{nr <= 9 ? nr : ''}</span>
+                <span className="deck-name">{s.name}</span>
               </button>
             );
           })}

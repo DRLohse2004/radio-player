@@ -122,6 +122,52 @@
   color: var(--text-muted);
 }
 
+/* ---------- Tastenkürzel in den Einstellungen (alle Designs) ---------- */
+
+.shortcut-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 7px 20px;
+  margin: 0;
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.shortcut-row dt {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 104px;
+  color: var(--text-faint);
+}
+.shortcut-row dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.shortcut-list kbd {
+  min-width: 24px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+}
+.shortcut-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
 /* ---------- Gemeinsame Bausteine der Designs ---------- */
 
 .tuning-scale {
@@ -338,7 +384,8 @@
 }
 
 .speaker-grille,
-.key-hints {
+.key-hints,
+.term-search {
   display: none;
 }
 
@@ -1262,6 +1309,287 @@
 }
 [data-theme='tafel'] .volume input {
   border-radius: 0;
+}
+
+/* =====================================================================
+   8 · Terminal – moderne Konsole, jeder Knopf zeigt sein Kürzel
+   ===================================================================== */
+
+:root[data-theme='terminal'] {
+  --bg: #0c0c0c;
+  --surface: #121212;
+  --surface-2: #161616;
+  --surface-3: #2e2e2e;
+  --border: #2e2e2e;
+  --text: #e6e6e6;
+  --text-muted: #a3a3a3;
+  --text-faint: #7a7a7a;
+  --accent: #3fd16a;
+  --accent-strong: #5ee584;
+  --accent-soft: rgba(63, 209, 106, 0.14);
+  --live: #3fd16a;
+  --warn: #f2d16b;
+  --term-blue: #4b8dff;
+  --term-yellow: #f2d16b;
+  --term-purple: #c678dd;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+[data-theme='terminal'] .stage-backdrop {
+  display: none;
+}
+[data-theme='terminal'] .app > .sidebar,
+[data-theme='terminal'] .modal,
+[data-theme='terminal'] .library {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  backdrop-filter: none;
+}
+[data-theme='terminal'] .station-item,
+[data-theme='terminal'] .station-select,
+[data-theme='terminal'] .icon-button,
+[data-theme='terminal'] .button,
+[data-theme='terminal'] .status-chip,
+[data-theme='terminal'] .like-button,
+[data-theme='terminal'] .player-bar .control,
+[data-theme='terminal'] .field input {
+  border-radius: 4px;
+}
+[data-theme='terminal'] .sidebar .station-item.active,
+[data-theme='terminal'] .sidebar .station-item.active:hover {
+  background: rgba(75, 141, 255, 0.14);
+  box-shadow: inset 0 0 0 1px var(--term-blue);
+}
+[data-theme='terminal'] .station-item.active::before {
+  display: none;
+}
+[data-theme='terminal'] kbd,
+[data-theme='terminal'] [data-key]::after {
+  display: inline-block;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+[data-theme='terminal'] [data-key]::after {
+  content: attr(data-key);
+  margin-left: 7px;
+}
+[data-theme='terminal'] .shortcut-list kbd {
+  font-size: 11px;
+  color: var(--text);
+}
+
+/* Quellen als Reiter */
+[data-theme='terminal'] .stage-tabs,
+[data-theme='terminal'] .status-chip {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+[data-theme='terminal'] .stage-tabs {
+  border-radius: 6px;
+}
+[data-theme='terminal'] .stage-tabs button {
+  border-radius: 4px;
+  color: var(--text-faint);
+}
+[data-theme='terminal'] .stage-tabs button.active {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+[data-theme='terminal'] .app.sidebar-open .stage-tabs [data-key]::after {
+  display: none;
+}
+
+/* Jetzt läuft */
+[data-theme='terminal'] .now-playing {
+  margin: 0 clamp(16px, 3vw, 28px);
+  padding-top: 18px;
+  padding-bottom: 18px;
+  justify-content: flex-start;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--term-purple);
+  border-radius: 6px;
+  background: var(--surface);
+}
+[data-theme='terminal'] .main-cover {
+  width: min(190px, 26vh, 20vw);
+}
+[data-theme='terminal'] .stage .cover {
+  border-radius: 4px;
+  box-shadow: none;
+}
+[data-theme='terminal'] .np-text {
+  max-width: none;
+}
+[data-theme='terminal'] .np-station {
+  color: var(--term-purple);
+}
+[data-theme='terminal'] .np-station::before {
+  content: '▶ ';
+}
+[data-theme='terminal'] .track-title {
+  font-weight: 800;
+  font-size: clamp(28px, min(5vw, 9vh, 13cqi), 64px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+[data-theme='terminal'] .track-artist {
+  color: var(--term-yellow);
+  opacity: 1;
+}
+[data-theme='terminal'] .kind-badge {
+  background: transparent;
+  color: var(--term-purple);
+  box-shadow: inset 0 0 0 1px var(--term-purple);
+}
+[data-theme='terminal'] .spectrum {
+  height: 34px;
+  margin-top: 10px;
+  gap: 3px;
+  color: var(--accent);
+}
+[data-theme='terminal'] .spectrum span {
+  width: 6px;
+}
+[data-theme='terminal'] .like-button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--term-yellow);
+}
+[data-theme='terminal'] .like-button:hover {
+  border-color: var(--term-yellow);
+}
+
+/* Sender als Kacheln mit Tastennummer */
+[data-theme='terminal'] .station-deck {
+  margin-top: 14px;
+}
+[data-theme='terminal'] .deck-path {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+[data-theme='terminal'] .deck-path b {
+  margin-right: 10px;
+  color: var(--accent);
+}
+[data-theme='terminal'] .deck-keys {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+[data-theme='terminal'] .deck-key {
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--term-blue);
+  font-weight: 600;
+  font-size: 14px;
+  transition: border-color 0.12s, background 0.12s;
+}
+[data-theme='terminal'] .deck-key:hover {
+  border-color: var(--term-blue);
+}
+[data-theme='terminal'] .deck-key.active {
+  border-color: var(--term-blue);
+  background: var(--term-blue);
+  color: var(--bg);
+}
+[data-theme='terminal'] .deck-nr {
+  flex-shrink: 0;
+  width: 20px;
+  color: var(--text-faint);
+}
+[data-theme='terminal'] .deck-key.active .deck-nr {
+  color: var(--bg);
+  opacity: 0.75;
+}
+
+/* Suchzeile mit blinkendem Cursor – öffnet den Sender-Store */
+[data-theme='terminal'] .term-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin: 12px clamp(16px, 3vw, 28px) 0;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: text;
+}
+[data-theme='terminal'] .term-search:hover {
+  border-color: var(--text-faint);
+}
+[data-theme='terminal'] .term-prompt {
+  color: var(--accent);
+  font-weight: 700;
+}
+[data-theme='terminal'] .term-cursor {
+  width: 0.55em;
+  height: 1.1em;
+  margin-left: -6px;
+  background: var(--text);
+  animation: term-blink 1.1s steps(1) infinite;
+}
+[data-theme='terminal'] .term-search kbd {
+  margin-left: auto;
+}
+@keyframes term-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Leiste unten */
+[data-theme='terminal'] .player-bar {
+  margin: 12px clamp(16px, 3vw, 28px) 16px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+[data-theme='terminal'] .key-hints {
+  display: block;
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme='terminal'] .player-bar .control {
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+[data-theme='terminal'] .player-bar .control.play {
+  border: 0;
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: none;
+}
+[data-theme='terminal'] .player-bar .control.play:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: var(--bg);
+}
+[data-theme='terminal'] .volume input {
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) var(--fill), var(--surface-3) var(--fill));
+}
+[data-theme='terminal'] .volume input::-webkit-slider-thumb {
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 /* ---------- Helle Designs: dunkle Glas-Effekte des Standards ersetzen ---------- */

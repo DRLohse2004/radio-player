@@ -290,7 +290,7 @@ bereitzustellen:
 | qrcode | npm | MIT |
 | hls.js | npm | Apache 2.0 |
 | yt-dlp | siehe `vendor/yt-dlp/HERKUNFT.md` | Unlicense |
-| Schriften der Designs (Archivo, IBM Plex Mono, VT323, Saira Condensed, Share Tech Mono, Anton, Work Sans, Syne, Instrument Sans, Barlow, Barlow Condensed) | npm `@fontsource/*`, beim Build eingebettet | SIL Open Font License 1.1 |
+| Schriften der Designs (Archivo, IBM Plex Mono, VT323, Saira Condensed, Share Tech Mono, Anton, Work Sans, Syne, Instrument Sans, Barlow, Barlow Condensed, JetBrains Mono) | npm `@fontsource/*`, beim Build eingebettet | SIL Open Font License 1.1 |
 
 ## Externe Dienste
 
