@@ -37,6 +37,7 @@ import './spotify.css';
 import './layout.css';
 import { DECK_THEMES, THEMES, useTheme } from './themes';
 import { VOLUME_STEP } from './shortcuts';
+import { moveTo } from './list';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 3000;
@@ -444,16 +445,7 @@ export default function App() {
     }
   }, []);
 
-  const moveStation = (id: string, toIndex: number) => {
-    setStations((list) => {
-      const from = list.findIndex((s) => s.id === id);
-      if (from < 0) return list;
-      const next = [...list];
-      const [moved] = next.splice(from, 1);
-      next.splice(from < toIndex ? toIndex - 1 : toIndex, 0, moved);
-      return next;
-    });
-  };
+  const moveStation = (id: string, toIndex: number) => setStations((list) => moveTo(list, id, toIndex));
 
   // --- Merkliste -------------------------------------------------------------------
 
@@ -774,15 +766,7 @@ export default function App() {
     };
     setYoutubeItems((list) => [...list, item]);
   };
-  const moveYoutube = (id: string, toIndex: number) =>
-    setYoutubeItems((list) => {
-      const from = list.findIndex((i) => i.id === id);
-      if (from < 0) return list;
-      const next = [...list];
-      const [moved] = next.splice(from, 1);
-      next.splice(from < toIndex ? toIndex - 1 : toIndex, 0, moved);
-      return next;
-    });
+  const moveYoutube = (id: string, toIndex: number) => setYoutubeItems((list) => moveTo(list, id, toIndex));
   const deleteYoutube = (id: string) => {
     if (ytNow?.item.id === id) yt.stop();
     setYoutubeItems((list) => list.filter((i) => i.id !== id));
@@ -1242,6 +1226,7 @@ export default function App() {
             entriesFor={yt.entriesFor}
             wishes={remote.wishes}
             onRemoveWish={remote.removeWish}
+            onMoveWish={remote.moveWish}
             onStartWishes={() => {
               const wish = takeWishRef.current();
               if (wish) yt.playWish(wish);

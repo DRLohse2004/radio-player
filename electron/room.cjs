@@ -203,7 +203,7 @@ function disconnect() {
 /** Anfrage an den Host weiterreichen (Befehle, Suche, Wünsche, Admin-PIN) */
 function request({ method = 'GET', path = '/', body, admin } = {}) {
   if (!link) return Promise.resolve({ status: 0, body: { error: 'Nicht verbunden.' } });
-  if (!/^\/api\/(command|search|wish|admin|state)(\?|$)/.test(path)) return Promise.resolve({ status: 400, body: { error: 'Unbekannt' } });
+  if (!/^\/api\/(command|search|playlist|wish|admin|state)(\?|$)/.test(path)) return Promise.resolve({ status: 400, body: { error: 'Unbekannt' } });
   const payload = body === undefined ? null : Buffer.from(JSON.stringify(body));
   return new Promise((resolve) => {
     const req = http.request(

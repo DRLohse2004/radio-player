@@ -123,7 +123,9 @@ abschotten, lassen oft nur diesen Port durch. Die App bleibt die Quelle der Wahr
   Die Wunsch-Regeln (pro Person, Höchstlänge, doppelte Songs) prüft `src/remote.ts`, die Gast-Rechte der Server.
 - Zugang: Schlüssel `k` aus dem QR-Code (Einstellung `remote.key`, „Neuen QR-Code erzeugen“ wechselt ihn). Admin per
   PIN (`/api/admin`, max. 5 Versuche pro Minute und IP) – das Token gilt bis zum Neustart oder bis die PIN wechselt.
-- Suche: `yt-dlp ytsearch12:`; Treffer werden zwischengespeichert, damit ein Wunsch ohne zweiten Abruf sofort steht.
+- Suche: `yt-dlp ytsearch12:` plus bis zu 4 Playlists (YouTube-Suchseite mit Filter `sp=EgIQAw==`); Video-Treffer werden
+  zwischengespeichert, damit ein Wunsch ohne zweiten Abruf sofort steht. `/api/playlist?id=` liefert die Songs einer Playlist,
+  `/api/wish` mit `{ playlist }` wünscht sie als Ganzes (ein Wunsch, `count` = Anzahl Songs; ohne Längengrenze).
 - Wünsche spielen über `useYouTube({ nextWish })`: nach dem aktuellen Titel, danach geht die Playlist bzw. der
   Livestream weiter. Läuft gar nichts (auch kein pausierter YouTube-Titel), startet ein Wunsch sofort.
 - Die Handy-Seite setzt alle Texte per `textContent` (keine HTML-Einschleusung über Songtitel oder Namen).

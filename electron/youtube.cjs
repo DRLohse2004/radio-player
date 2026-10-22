@@ -136,11 +136,32 @@ async function resolve(url) {
   };
 }
 
-/** YouTube-Suche (oder ein eingefügter Video-Link) – liefert bis zu 12 Videos */
+/** YouTube-Suche (oder ein eingefügter Video-Link) – bis zu 12 Videos, danach bis zu 4 Playlists */
 async function search(query) {
   const q = String(query).trim().slice(0, 200);
   if (!q) return [];
-  const target = /^https?:\/\//i.test(q) ? q : `ytsearch12:${q}`;
+  if (/^https?:\/\//i.test(q)) return searchVideos(q);
+  const [videos, playlists] = await Promise.all([searchVideos(`ytsearch12:${q}`), searchPlaylists(q).catch(() => [])]);
+  return [...videos, ...playlists];
+}
+
+async function searchPlaylists(q) {
+  // sp=EgIQAw== ist YouTubes Filter „nur Playlists“
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=EgIQAw%3D%3D`;
+  const raw = await run(await binary(), [...baseArgs(), '--flat-playlist', '-I', '1:4', '-J', url]);
+  return (JSON.parse(raw).entries ?? [])
+    .filter((e) => e && PLAYLIST_ID.test(e.id ?? ''))
+    .map((e) => ({
+      id: e.id,
+      kind: 'playlist',
+      title: e.title ?? e.id,
+      channel: e.channel ?? e.uploader ?? null,
+      duration: 0,
+      thumbnail: e.thumbnails?.[0]?.url ?? null,
+    }));
+}
+
+async function searchVideos(target) {
   const raw = await run(await binary(), [...baseArgs(), '--flat-playlist', '--no-playlist', '-J', target]);
   const j = JSON.parse(raw);
   const list = j._type === 'playlist' ? j.entries ?? [] : [j];
@@ -153,6 +174,17 @@ async function search(query) {
       duration: e.duration ?? 0,
       thumbnail: videoThumbnail(e.id),
     }));
+}
+
+const PLAYLIST_ID = /^[\w-]{10,80}$/;
+
+/** Songs einer Playlist aus der Suche – zum Aufklappen und für den Wunsch der ganzen Playlist */
+async function playlist(id) {
+  if (!PLAYLIST_ID.test(String(id))) throw new Error('Ungültige Playlist.');
+  const url = `https://www.youtube.com/playlist?list=${id}`;
+  const result = await info(url);
+  if (result.kind !== 'playlist' || !result.entries.length) throw new Error('Die Playlist ist leer oder privat.');
+  return { id, url, title: result.title, channel: result.channel, thumbnail: result.thumbnail, entries: result.entries };
 }
 
 /** Infos zu genau einem Video (für Wünsche: Titel und Länge prüfen) */
@@ -182,4 +214,4 @@ async function getVersion() {
   return version(await binary());
 }
 
-module.exports = { setup, info, resolve, search, video, update, getVersion };
+module.exports = { setup, info, resolve, search, playlist, video, update, getVersion };

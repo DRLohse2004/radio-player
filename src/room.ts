@@ -62,7 +62,12 @@ export function useRoom(prefs: RoomPrefs, ready: boolean, myName: string) {
     async (query: string) => (await call(`/api/search?q=${encodeURIComponent(query)}`)).results as SearchResult[],
     [call],
   );
-  const wish = useCallback((id: string) => call('/api/wish', { id }), [call]);
+  const playlist = useCallback(
+    async (id: string) => (await call(`/api/playlist?id=${encodeURIComponent(id)}`)).entries as SearchResult[],
+    [call],
+  );
+  /** Einzelnes Video oder (whole) die ganze Playlist wünschen */
+  const wish = useCallback((id: string, whole = false) => call('/api/wish', whole ? { playlist: id } : { id }), [call]);
   const login = useCallback(
     async (pin: string) => {
       const body = await call('/api/admin', { pin });
@@ -71,7 +76,7 @@ export function useRoom(prefs: RoomPrefs, ready: boolean, myName: string) {
     [call],
   );
 
-  return { status, error, host, admin: !!admin, command, search, wish, login, logout: () => setAdmin(null) };
+  return { status, error, host, admin: !!admin, command, search, playlist, wish, login, logout: () => setAdmin(null) };
 }
 
 export interface SearchResult {
@@ -81,6 +86,7 @@ export interface SearchResult {
   duration: number;
   thumbnail: string | null;
   live?: boolean;
+  kind?: 'playlist';
 }
 
 /** Beim Mithören dasselbe wie der Host abspielen */

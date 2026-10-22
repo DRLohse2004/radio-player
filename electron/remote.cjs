@@ -230,12 +230,20 @@ async function handle(req, res) {
 
   if (req.method === 'GET' && route === '/api/state') return json(res, 200, snapshot ?? {});
 
-  if (req.method === 'GET' && route === '/api/search') {
+  if (req.method === 'GET' && (route === '/api/search' || route === '/api/playlist')) {
     if (searchesRunning >= 3) return json(res, 429, { error: 'Gerade suchen viele gleichzeitig – bitte kurz warten.' });
     searchesRunning += 1;
     try {
+      const now = Date.now();
+      // Aufgeklappte Playlists bringen viele Einträge mit – Altes nach einer Stunde vergessen
+      if (searchCache.size > 2000) for (const [id, v] of searchCache) if (now - v.at > 3600_000) searchCache.delete(id);
+      if (route === '/api/playlist') {
+        const list = await youtube.playlist(url.searchParams.get('id') ?? '');
+        for (const e of list.entries) searchCache.set(e.id, { ...e, at: now });
+        return json(res, 200, list);
+      }
       const results = await youtube.search(url.searchParams.get('q') ?? '');
-      for (const r of results) searchCache.set(r.id, { ...r, at: Date.now() });
+      for (const r of results) if (r.kind !== 'playlist') searchCache.set(r.id, { ...r, at: now });
       return json(res, 200, { results });
     } catch (err) {
       return json(res, 502, { error: `YouTube-Suche fehlgeschlagen: ${err.message}` });
@@ -263,7 +271,12 @@ async function handle(req, res) {
     const id = String(body.id ?? '');
     try {
       let video = searchCache.get(id);
-      if (!video || Date.now() - video.at > 3600_000) video = await youtube.video(id);
+      if (body.playlist) {
+        // Ganze Playlist: ein Wunsch, der beim Host als Playlist läuft
+        const list = await youtube.playlist(String(body.playlist));
+        const duration = list.entries.reduce((sum, e) => sum + (e.duration || 0), 0);
+        video = { id: list.id, title: list.title, channel: list.channel, thumbnail: list.thumbnail, duration, count: list.entries.length };
+      } else if (!video || Date.now() - video.at > 3600_000) video = await youtube.video(id);
       if (video.live) return json(res, 400, { error: 'Livestreams können nicht gewünscht werden.' });
       const result = await request({ action: 'wish', video, client: who });
       return json(res, result.error ? 400 : 200, result);

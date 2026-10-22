@@ -66,4 +66,9 @@ describe('Rooms', () => {
     const result = await room.request({ path: '/api/../geheim' });
     expect(result.status).toBe(400);
   });
+
+  it('reicht Playlist-Abfragen an den Host weiter', async () => {
+    const result = await room.request({ path: '/api/playlist?id=PL123' });
+    expect(result.status).not.toBe(400);
+  });
 });

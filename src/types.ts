@@ -159,6 +159,8 @@ export interface Wish {
   thumbnail: string | null;
   by: string;
   clientId: string;
+  /** Ganze Playlist (videoId ist dann die Playlist-ID): Anzahl Songs */
+  count?: number;
 }
 
 export interface RemoteClient {
@@ -182,7 +184,7 @@ export interface RemoteCommand {
   id: number;
   action: string;
   value?: unknown;
-  video?: { id: string; title: string; channel: string | null; duration: number; thumbnail: string | null };
+  video?: { id: string; title: string; channel: string | null; duration: number; thumbnail: string | null; count?: number };
   client: { clientId: string; name: string; admin: boolean };
 }
 

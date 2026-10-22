@@ -128,9 +128,9 @@ Am Handy gibt es:
 
 - **Steuerung:** Pause/Weiter, vor und zurück, Lautstärke – und anzeigen, was gerade läuft.
 - **Sender:** antippen, und er spielt.
-- **Wünsche:** Song oder Interpret suchen und mit **„+“** auf die Wunschliste setzen. Wünsche spielen nach dem aktuellen YouTube-Titel; läuft gar nichts, startet der Wunsch sofort; läuft das Radio, startet „Jetzt spielen“ die Wunschliste.
+- **Wünsche:** Song, Interpret oder Playlist suchen und mit **„+“** auf die Wunschliste setzen. Eine Playlist klappt beim Antippen ihre Songs zum einzelnen Wünschen auf; **„Alle“** setzt die ganze Playlist als einen Wunsch auf die Liste – sie läuft dann komplett, bevor der nächste Wunsch kommt. Wünsche spielen nach dem aktuellen YouTube-Titel; läuft gar nichts, startet der Wunsch sofort; läuft das Radio, startet „Jetzt spielen“ die Wunschliste.
 
-Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und sortieren. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
+Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren. Am PC lässt sich die Wunschliste im Reiter YouTube jederzeit mit der Maus umsortieren. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
 
 > Handy und PC müssen im selben Netzwerk sein. Die Fernbedienung nutzt Port 80 – der ist auch in abgeschotteten WLANs meist offen. „Neuen QR-Code erzeugen“ sperrt alle bisherigen Handys aus.
 
@@ -145,7 +145,7 @@ An jedem anderen Radio ebenfalls das Room-Symbol öffnen: Das Radio sucht im Net
 
 ![Room – Mithören](docs/screenshots/room.png)
 
-Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild (F11) gibt es auch im Room. Im Room sieht man die Sender und YouTube-Links des Hosts und kann sich Songs wünschen. Was Gäste dürfen, gilt wie bei der Handy-Fernbedienung. Wer sich unter „Wünsche“ mit der Admin-PIN des Hosts anmeldet, bekommt links zusätzlich den Bereich **„Empfang“** und kann dort Spotify Connect und AirPlay am Host ein- und ausschalten. Die eigenen Einstellungen (oben rechts) bleiben auch im Room erreichbar. „Room verlassen“ bringt die eigenen Sender und Einstellungen unverändert zurück.
+Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild (F11) gibt es auch im Room. Im Room sieht man die Sender und YouTube-Links des Hosts und kann sich Songs und Playlists wünschen; mit der Admin-PIN lässt sich die Wunschliste per Ziehen sortieren. Was Gäste dürfen, gilt wie bei der Handy-Fernbedienung. Wer sich unter „Wünsche“ mit der Admin-PIN des Hosts anmeldet, bekommt links zusätzlich den Bereich **„Empfang“** und kann dort Spotify Connect und AirPlay am Host ein- und ausschalten. Die eigenen Einstellungen (oben rechts) bleiben auch im Room erreichbar. „Room verlassen“ bringt die eigenen Sender und Einstellungen unverändert zurück.
 
 > Findet die Suche den Host nicht (z. B. weil er in einem anderen Netz hängt), unter **„Auch in diesen Netzen suchen“** das Netz des Hosts eintragen, z. B. `10.0.11.255` oder `10.0.255.255` für alle 10.0.x.x-Netze – oder direkt seine Adresse eintragen, sie steht beim Host im Room-Fenster. Mithören geht für Radiosender und YouTube; Spotify, AirPlay und Bluetooth kommen nur beim Host an und laufen dort weiter.
 

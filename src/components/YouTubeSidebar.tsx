@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, isDesktop } from '../api';
+import { useDragSort } from '../hooks';
 import type { YouTubeState } from '../youtube';
 import type { Wish, YouTubeEntry, YouTubeItem } from '../types';
-import { CheckIcon, CloseIcon, EditIcon, PlusIcon, TrashIcon, YouTubeIcon } from './Icons';
+import { CheckIcon, CloseIcon, EditIcon, GripIcon, PlusIcon, TrashIcon, YouTubeIcon } from './Icons';
 
 interface Props {
   items: YouTubeItem[];
@@ -10,6 +11,7 @@ interface Props {
   entriesFor(itemId: string): YouTubeEntry[] | null;
   wishes: Wish[];
   onRemoveWish(id: string): void;
+  onMoveWish(id: string, toIndex: number): void;
   onStartWishes(): void;
   onPlay(item: YouTubeItem, index?: number): void;
   onAdd(url: string): Promise<void>;
@@ -36,13 +38,14 @@ function subtitle(item: YouTubeItem) {
   return parts.join(' · ');
 }
 
-export function YouTubeSidebar({ items, state, entriesFor, wishes, onRemoveWish, onStartWishes, onPlay, onAdd, onRename, onDelete, onMove, onClose }: Props) {
+export function YouTubeSidebar({ items, state, entriesFor, wishes, onRemoveWish, onMoveWish, onStartWishes, onPlay, onAdd, onRename, onDelete, onMove, onClose }: Props) {
   const [url, setUrl] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const wishDrag = useDragSort(wishes.length, onMoveWish);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [version, setVersion] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -136,12 +139,18 @@ export function YouTubeSidebar({ items, state, entriesFor, wishes, onRemoveWish,
           </div>
           <ol className="yt-queue wish-list">
             {wishes.map((wish, i) => (
-              <li key={wish.id}>
+              <li key={wish.id} {...wishDrag(wish.id, i)}>
                 <div className="wish-row">
+                  <span className="drag-handle" title="Ziehen zum Sortieren">
+                    <GripIcon size={12} />
+                  </span>
                   <span className="yt-queue-no">{i + 1}</span>
                   <span className="yt-queue-title" title={wish.title}>
                     {wish.title}
-                    <small>{wish.by}</small>
+                    <small>
+                      {wish.by}
+                      {wish.count !== undefined && ` · Playlist, ${wish.count} Songs`}
+                    </small>
                   </span>
                   <button className="icon-button tiny" onClick={() => onRemoveWish(wish.id)} title="Wunsch entfernen">
                     <CloseIcon size={12} />

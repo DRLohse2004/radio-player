@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import type { RemoteClient, RemoteCommand, RemoteInfo, RemotePrefs, Wish, YouTubeItem } from './types';
+import { moveTo } from './list';
 import { watchUrl } from './youtube';
 
 export function newRemoteKey() {
@@ -12,13 +13,15 @@ export function newRemoteKey() {
 }
 
 export function wishToItem(wish: Wish): YouTubeItem {
+  const playlist = wish.count !== undefined;
   return {
     id: `wish-${wish.id}`,
-    url: watchUrl(wish.videoId),
+    url: playlist ? `https://www.youtube.com/playlist?list=${wish.videoId}` : watchUrl(wish.videoId),
     title: wish.title,
     channel: wish.channel,
     thumbnail: wish.thumbnail,
-    kind: 'video',
+    kind: playlist ? 'playlist' : 'video',
+    count: wish.count,
     wishedBy: wish.by,
   };
 }
@@ -91,19 +94,7 @@ export function useRemote(
   }, []);
 
   const removeWish = useCallback((id: string) => setWishes((list) => list.filter((w) => w.id !== id)), []);
-  const moveWish = useCallback(
-    (id: string, delta: number) =>
-      setWishes((list) => {
-        const from = list.findIndex((w) => w.id === id);
-        const to = from + delta;
-        if (from < 0 || to < 0 || to >= list.length) return list;
-        const next = [...list];
-        const [moved] = next.splice(from, 1);
-        next.splice(to, 0, moved);
-        return next;
-      }),
-    [],
-  );
+  const moveWish = useCallback((id: string, toIndex: number) => setWishes((list) => moveTo(list, id, toIndex)), []);
   const clearWishes = useCallback(() => setWishes([]), []);
 
   // Befehle vom Handy
@@ -144,7 +135,8 @@ export function useRemote(
             const list = wishesRef.current;
             if (list.some((w) => w.videoId === video.id)) return done({ error: 'Steht schon auf der Wunschliste.' });
             if (!client.admin) {
-              if (p.maxMinutes > 0 && video.duration > p.maxMinutes * 60)
+              // shortcut: Playlists sind von der Längenbegrenzung ausgenommen, zählen als ein Wunsch – bei Missbrauch Admin-Pflicht einführen
+              if (p.maxMinutes > 0 && video.count === undefined && video.duration > p.maxMinutes * 60)
                 return done({ error: `Zu lang – Wünsche dürfen höchstens ${p.maxMinutes} Minuten lang sein.` });
               const own = list.filter((w) => w.clientId === client.clientId).length;
               if (own >= p.maxWishes)
@@ -159,6 +151,7 @@ export function useRemote(
               thumbnail: video.thumbnail,
               by: client.name,
               clientId: client.clientId,
+              count: video.count,
             };
             const next = [...list, wish];
             wishesRef.current = next;
@@ -174,8 +167,8 @@ export function useRemote(
             return done();
           }
           case 'wishMove': {
-            const { id, delta } = (command.value ?? {}) as { id?: string; delta?: number };
-            moveWish(String(id), delta === -1 ? -1 : 1);
+            const { id, to } = (command.value ?? {}) as { id?: string; to?: number };
+            moveWish(String(id), Number(to));
             return done();
           }
           case 'wishClear':

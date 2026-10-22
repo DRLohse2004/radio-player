@@ -95,6 +95,12 @@
   .icon-btn { width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; background: var(--surface-3); font-size: 22px; line-height: 1; }
   .icon-btn.add { background: var(--accent); color: #fff; }
   .icon-btn.done { background: var(--live); color: #000; }
+  .icon-btn.wide { width: auto; padding: 0 12px; font-size: 15px; font-weight: 600; }
+  .list.songs { margin: 6px 0 0 18px; }
+  .handle { width: 28px; flex-shrink: 0; text-align: center; font-size: 22px; color: var(--faint); cursor: grab; touch-action: none; user-select: none; }
+  .item.dragging { opacity: .5; }
+  .item.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+  .item.drop-after { box-shadow: 0 3px 0 var(--accent); }
   .no { width: 22px; text-align: center; color: var(--faint); font-variant-numeric: tabular-nums; }
   .spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: #fff; animation: spin .8s linear infinite; margin: 20px auto; }
   .icon-btn .spinner { margin: 0; width: 18px; height: 18px; }
@@ -166,7 +172,7 @@
 
     <section data-panel="wishes">
       <form class="search" id="searchForm">
-        <input id="searchInput" type="search" placeholder="Song oder Interpret suchen …" autocomplete="off" enterkeyhint="search">
+        <input id="searchInput" type="search" placeholder="Song, Interpret oder Playlist suchen …" autocomplete="off" enterkeyhint="search">
         <button class="btn" type="submit">Suchen</button>
       </form>
       <p class="hint" id="rulesHint"></p>
@@ -189,7 +195,7 @@
         </form>
       </div>
       <div id="adminArea" hidden>
-        <p class="hint"><span class="admin-badge">✓ Als Admin angemeldet.</span> In der Wunschliste kannst du jetzt alle Wünsche löschen und verschieben.</p>
+        <p class="hint"><span class="admin-badge">✓ Als Admin angemeldet.</span> In der Wunschliste kannst du jetzt alle Wünsche löschen und am Griff ≡ verschieben.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn ghost small" id="clearWishes">Wunschliste leeren</button>
           <button class="btn ghost small" id="adminLogout">Abmelden</button>
@@ -375,21 +381,55 @@
   }
   setInterval(updateProgress, 1000);
 
+  // Admin sortiert die Wunschliste mit dem Finger am Griff ≡ (Pointer-Events – HTML-Drag&Drop geht auf Handys nicht)
+  let dragging = false;
+  function startDrag(e, li, id) {
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const items = [...$('wishList').children];
+    const from = items.indexOf(li);
+    let to = from;
+    dragging = true;
+    li.classList.add('dragging');
+    handle.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      to = items.findIndex((x) => { const r = x.getBoundingClientRect(); return ev.clientY < r.top + r.height / 2; });
+      if (to < 0) to = items.length;
+      items.forEach((x, i) => {
+        x.classList.toggle('drop-before', i === to);
+        x.classList.toggle('drop-after', to === items.length && i === items.length - 1);
+      });
+    };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      dragging = false;
+      if (to !== from && to !== from + 1) command('wishMove', { id, to });
+      renderWishes();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  }
+
   function renderWishes() {
+    if (dragging) return; // Live-Updates erst nach dem Ziehen zeichnen
     const list = $('wishList');
     const admin = !!adminToken;
     list.replaceChildren(
-      ...state.wishes.map((w, i) =>
-        el('li', { class: 'item' },
-          el('span', { class: 'no' }, i + 1),
+      ...state.wishes.map((w, i) => {
+        const li = el('li', { class: 'item' },
+          admin ? el('span', { class: 'handle', title: 'Ziehen zum Sortieren', onpointerdown: (e) => startDrag(e, li, w.id) }, '≡') : el('span', { class: 'no' }, i + 1),
           el('div', { class: 'thumb', style: `background-image:${cssUrl(w.thumbnail)}` }, w.duration ? el('span', {}, fmt(w.duration)) : null),
           el('div', { class: 'item-text' },
             el('div', { class: 'item-title' }, w.title),
-            el('div', { class: 'item-sub' }, `von ${w.by}`)),
-          admin && i > 0 ? el('button', { class: 'icon-btn', title: 'Nach oben', onclick: () => command('wishMove', { id: w.id, delta: -1 }) }, '↑') : null,
+            el('div', { class: 'item-sub' }, `von ${w.by}${w.count !== undefined ? ` · Playlist, ${w.count} Songs` : ''}`)),
           admin || w.clientId === clientId
             ? el('button', { class: 'icon-btn', title: 'Wunsch löschen', onclick: () => command('wishRemove', w.id).then(() => addedIds.delete(w.videoId)) }, '×')
-            : null)),
+            : null);
+        return li;
+      }),
     );
     $('wishEmpty').hidden = state.wishes.length > 0;
     const playingWish = state.source === 'youtube' && state.wishedBy;
@@ -428,30 +468,64 @@
     }
   });
 
-  function resultItem(v) {
-    const already = addedIds.has(v.id) || state?.wishes.some((w) => w.videoId === v.id);
-    const btn = el('button', { class: `icon-btn ${already ? 'done' : 'add'}`, title: 'Wünschen', disabled: already }, already ? '✓' : '+');
-    btn.addEventListener('click', async () => {
+  /** Knopf „Wünschen“ – body ist { id } für ein Video oder { playlist } für eine ganze Playlist */
+  function wishButton(id, body, label = '+') {
+    const already = addedIds.has(id) || state?.wishes.some((w) => w.videoId === id);
+    const wide = label.length > 1 ? ' wide' : '';
+    const btn = el('button', { class: `icon-btn ${already ? 'done' : 'add'}${wide}`, title: 'Wünschen', disabled: already }, already ? '✓' : label);
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       if (!name) return askName();
       btn.disabled = true;
       btn.replaceChildren(el('div', { class: 'spinner' }));
       try {
-        await api('/api/wish', { id: v.id });
-        addedIds.add(v.id);
-        btn.className = 'icon-btn done';
+        await api('/api/wish', body);
+        addedIds.add(id);
+        btn.className = `icon-btn done${wide}`;
         btn.textContent = '✓';
         toast('Gewünscht! Steht jetzt auf der Wunschliste.');
       } catch (err) {
         btn.disabled = false;
-        btn.className = 'icon-btn add';
-        btn.textContent = '+';
+        btn.className = `icon-btn add${wide}`;
+        btn.textContent = label;
         toast(err.message, true);
       }
     });
+    return btn;
+  }
+
+  function resultItem(v) {
+    if (v.kind === 'playlist') return playlistItem(v);
     return el('li', { class: 'item' },
       el('div', { class: 'thumb', style: `background-image:${cssUrl(v.thumbnail)}` }, v.duration ? el('span', {}, fmt(v.duration)) : null),
       el('div', { class: 'item-text' }, el('div', { class: 'item-title' }, v.title), el('div', { class: 'item-sub' }, v.channel || '')),
-      btn);
+      wishButton(v.id, { id: v.id }));
+  }
+
+  /** Playlist: antippen klappt die Songs zum einzelnen Wünschen auf, „Alle“ wünscht die ganze Playlist */
+  function playlistItem(p) {
+    const songs = el('ul', { class: 'list songs', hidden: true });
+    const sub = el('div', { class: 'item-sub' }, `▸ Playlist${p.channel ? ` · ${p.channel}` : ''}`);
+    const toggle = async () => {
+      songs.hidden = !songs.hidden;
+      sub.textContent = `${songs.hidden ? '▸' : '▾'} Playlist${p.channel ? ` · ${p.channel}` : ''}`;
+      if (songs.hidden || songs.childElementCount) return;
+      songs.replaceChildren(el('div', { class: 'spinner' }));
+      try {
+        const { entries } = await api(`/api/playlist?id=${encodeURIComponent(p.id)}`);
+        songs.replaceChildren(...entries.map(resultItem));
+      } catch (err) {
+        songs.replaceChildren();
+        songs.hidden = true;
+        toast(err.message, true);
+      }
+    };
+    return el('li', {},
+      el('div', { class: 'item', onclick: toggle },
+        el('div', { class: 'thumb', style: `background-image:${cssUrl(p.thumbnail)}` }),
+        el('div', { class: 'item-text' }, el('div', { class: 'item-title' }, p.title), sub),
+        wishButton(p.id, { playlist: p.id }, 'Alle')),
+      songs);
   }
 
   $('wishStart').addEventListener('click', () => command('wishStart'));

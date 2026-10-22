@@ -232,17 +232,22 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
   const playWish = useCallback(
     (wish: YouTubeItem) => {
       const { now } = stateRef.current;
-      if (now && !now.item.wishedBy) resumeRef.current = { item: now.item, entries: now.entries, index: now.index, live: now.live };
+      const back = now && !now.item.wishedBy ? { item: now.item, entries: now.entries, index: now.index, live: now.live } : resumeRef.current;
       retryRef.current = false;
-      return start(wish, [], 0);
+      const started = wish.kind === 'playlist' ? play(wish) : start(wish, [], 0);
+      // play() vergisst die Rückkehr-Stelle – für Wünsche gilt sie weiter
+      resumeRef.current = back;
+      return started;
     },
-    [start],
+    [play, start],
   );
 
   /** Weiter: zuerst Wünsche, dann zurück zur Playlist bzw. zum Livestream */
   const advance = useCallback(
     (manual: boolean) => {
       const { now } = stateRef.current;
+      // Gewünschte Playlist erst zu Ende spielen, dann der nächste Wunsch
+      if (now?.item.wishedBy && now.index < now.entries.length - 1) return void start(now.item, now.entries, now.index + 1);
       const wish = optionsRef.current.nextWish?.();
       if (wish) return void playWish(wish);
       if (now?.item.wishedBy) {

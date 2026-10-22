@@ -4,10 +4,11 @@ import type { AudioGraph } from '../audio';
 import { useListen, type SearchResult, type useRoom } from '../room';
 import type { HostReceiver, PlayerStatus, RoomPrefs, Station, Track } from '../types';
 import { FullscreenView } from './FullscreenView';
-import { CloseIcon, ExpandIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
+import { CloseIcon, ExpandIcon, GripIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
 import { Controls, Cover } from './Player';
 import { StationLogo } from './StationLogo';
 import { VOLUME_STEP } from '../shortcuts';
+import { useDragSort } from '../hooks';
 
 type Room = ReturnType<typeof useRoom>;
 
@@ -437,11 +438,39 @@ function WishPanel({ room, clientId, onMessage }: { room: Room; clientId: string
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState('');
+  const [open, setOpen] = useState<{ id: string; entries: SearchResult[] | null } | null>(null);
   const wishes = room.host?.wishes ?? [];
+  const wishDrag = useDragSort(wishes.length, (id, to) =>
+    room.command('wishMove', { id, to }).catch((err: Error) => onMessage(err.message)),
+  );
+
+  const wish = (r: SearchResult, whole = false) =>
+    room
+      .wish(r.id, whole)
+      .then(() => {
+        onMessage(`„${r.title}“ ist auf der Wunschliste.`);
+        setResults(null);
+        setOpen(null);
+        setQuery('');
+      })
+      .catch((err: Error) => onMessage(err.message));
+
+  const toggleOpen = (id: string) => {
+    if (open?.id === id) return setOpen(null);
+    setOpen({ id, entries: null });
+    room
+      .playlist(id)
+      .then((entries) => setOpen((o) => (o?.id === id ? { id, entries } : o)))
+      .catch((err: Error) => {
+        setOpen(null);
+        onMessage(err.message);
+      });
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
+    setOpen(null);
     setBusy(true);
     try {
       setResults(await room.search(query.trim()));
@@ -455,7 +484,7 @@ function WishPanel({ room, clientId, onMessage }: { room: Room; clientId: string
   return (
     <div className="room-wishes">
       <form className="yt-add" onSubmit={submit}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Song auf YouTube suchen …" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Song oder Playlist suchen …" />
         <button className="icon-button" disabled={busy} title="Suchen">
           <SearchIcon size={16} />
         </button>
@@ -464,31 +493,52 @@ function WishPanel({ room, clientId, onMessage }: { room: Room; clientId: string
       {results && (
         <ul className="station-list flush">
           {results.length === 0 && <p className="side-note">Nichts gefunden.</p>}
-          {results.map((r) => (
-            <li key={r.id} className="station-item">
-              <button
-                className="station-select"
-                disabled={r.live}
-                onClick={() =>
-                  room
-                    .wish(r.id)
-                    .then(() => {
-                      onMessage(`„${r.title}“ ist auf der Wunschliste.`);
-                      setResults(null);
-                      setQuery('');
-                    })
-                    .catch((err: Error) => onMessage(err.message))
-                }
-              >
-                <span className="room-thumb">{r.thumbnail && <img src={r.thumbnail} alt="" />}</span>
-                <span className="station-name">
-                  {r.title}
-                  <small>{r.live ? 'Livestream' : formatTime(r.duration)}</small>
-                </span>
-                <PlusIcon size={16} />
-              </button>
-            </li>
-          ))}
+          {results.map((r) =>
+            r.kind === 'playlist' ? (
+              <li key={r.id} className="room-playlist">
+                <div className="station-item">
+                  <button className="station-select" onClick={() => toggleOpen(r.id)} title="Songs der Playlist zeigen">
+                    <span className="room-thumb">{r.thumbnail && <img src={r.thumbnail} alt="" />}</span>
+                    <span className="station-name">
+                      {r.title}
+                      <small>Playlist{r.channel ? ` · ${r.channel}` : ''}</small>
+                    </span>
+                    <span className="room-playlist-toggle">{open?.id === r.id ? '▾' : '▸'}</span>
+                  </button>
+                  <button className="mini" onClick={() => wish(r, true)} title="Ganze Playlist als einen Wunsch anhängen">
+                    Alle
+                  </button>
+                </div>
+                {open?.id === r.id && (
+                  <ul className="station-list flush">
+                    {!open.entries && <p className="side-note">Lade Songs …</p>}
+                    {open.entries?.map((e) => (
+                      <li key={e.id} className="station-item">
+                        <button className="station-select" onClick={() => wish(e)}>
+                          <span className="station-name">
+                            {e.title}
+                            <small>{formatTime(e.duration)}</small>
+                          </span>
+                          <PlusIcon size={16} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ) : (
+              <li key={r.id} className="station-item">
+                <button className="station-select" disabled={r.live} onClick={() => wish(r)}>
+                  <span className="room-thumb">{r.thumbnail && <img src={r.thumbnail} alt="" />}</span>
+                  <span className="station-name">
+                    {r.title}
+                    <small>{r.live ? 'Livestream' : formatTime(r.duration)}</small>
+                  </span>
+                  <PlusIcon size={16} />
+                </button>
+              </li>
+            ),
+          )}
         </ul>
       )}
 
@@ -504,12 +554,20 @@ function WishPanel({ room, clientId, onMessage }: { room: Room; clientId: string
         <p className="side-note">Noch keine Wünsche.</p>
       ) : (
         <ol className="yt-queue wish-list">
-          {wishes.map((w) => (
-            <li key={w.id}>
+          {wishes.map((w, i) => (
+            <li key={w.id} {...(room.admin ? wishDrag(w.id, i) : {})}>
               <div className="wish-row">
+                {room.admin && (
+                  <span className="drag-handle" title="Ziehen zum Sortieren">
+                    <GripIcon size={12} />
+                  </span>
+                )}
                 <span className="yt-queue-title" title={w.title}>
                   {w.title}
-                  <small>{w.by}</small>
+                  <small>
+                    {w.by}
+                    {w.count !== undefined && ` · Playlist, ${w.count} Songs`}
+                  </small>
                 </span>
                 {(room.admin || w.clientId === clientId) && (
                   <button

@@ -593,6 +593,17 @@
   font-size: 11px;
   color: var(--text-faint);
 }
+/* Room: Playlist in den Suchergebnissen – aufklappbar, mit „Alle wünschen“ */
+.room-playlist > .station-item {
+  align-items: center;
+  padding-right: 8px;
+}
+.room-playlist > .station-list {
+  margin-left: 18px;
+}
+.room-playlist-toggle {
+  color: var(--text-faint);
+}
 .wish-by {
   color: #ff8a80;
 }

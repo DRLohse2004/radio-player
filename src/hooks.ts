@@ -88,3 +88,41 @@ export function usePixelShift(range: number, intervalMs = 60_000) {
   }, [range, intervalMs]);
   return offset;
 }
+
+/** Ziehen zum Sortieren wie in der Senderliste: liefert die Eigenschaften je Listeneintrag.
+ *  onMove bekommt den Platz in der alten Liste, vor den der Eintrag kommt. */
+export function useDragSort(count: number, onMove: (id: string, toIndex: number) => void) {
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const end = () => {
+    setDragId(null);
+    setDropIndex(null);
+  };
+  return (id: string, index: number) => ({
+    draggable: true,
+    className: [
+      dragId === id && 'dragging',
+      dragId && dropIndex === index && 'drop-before',
+      dragId && dropIndex === index + 1 && index === count - 1 && 'drop-after',
+    ]
+      .filter(Boolean)
+      .join(' '),
+    onDragStart: (e: React.DragEvent) => {
+      setDragId(id);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', id);
+    },
+    onDragOver: (e: React.DragEvent) => {
+      if (!dragId) return;
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      setDropIndex(e.clientY < rect.top + rect.height / 2 ? index : index + 1);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      if (dragId && dropIndex !== null) onMove(dragId, dropIndex);
+      end();
+    },
+    onDragEnd: end,
+  });
+}
