@@ -8,6 +8,44 @@
   background: transparent;
 }
 
+/* Große Titel: nur zwischen Wörtern umbrechen, Kopfzeile bleibt immer obenauf */
+:root[data-theme] .track-title,
+:root[data-theme] .track-artist {
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+:root[data-theme] .np-text {
+  /* Titelgröße richtet sich nach der Breite der Textspalte (cqi) */
+  container-type: inline-size;
+}
+:root[data-theme] .stage-actions {
+  flex-shrink: 0;
+}
+:root[data-theme] .stage-top {
+  z-index: 2;
+}
+:root[data-theme] .stage-tabs {
+  min-width: 0;
+  overflow: hidden;
+}
+:root[data-theme] .stage-tabs button {
+  white-space: nowrap;
+}
+:root[data-theme] .app.sidebar-open .stage-tabs button {
+  padding: 6px 9px;
+  letter-spacing: 0.04em;
+}
+/* Seitenleiste offen und Fenster schmal: Statusanzeige weicht den Reitern */
+@media (max-width: 1200px) {
+  :root[data-theme] .app.sidebar-open .stage-top .status-chip {
+    display: none;
+  }
+  :root[data-theme] .app.sidebar-open .stage-tabs button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+}
+
 /* Hülle um Cover und Text – im Standard-Design ohne eigene Box */
 .np-main {
   display: contents;
@@ -260,6 +298,12 @@
 .flaps {
   display: flex;
   flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 4px;
+}
+.flap-word {
+  display: flex;
+  flex-wrap: wrap;
   gap: 3px;
 }
 .flap {
@@ -280,9 +324,9 @@
   }
 }
 .flaps-title .flap {
-  width: clamp(26px, 3.4vw, 50px);
-  height: clamp(38px, 5vw, 72px);
-  font-size: clamp(28px, 3.6vw, 54px);
+  width: clamp(22px, min(2.8vw, 5vh), 50px);
+  height: clamp(32px, min(4.1vw, 7.2vh), 72px);
+  font-size: clamp(24px, min(3vw, 5.4vh), 54px);
 }
 .flaps-artist {
   margin-top: 6px;
@@ -333,7 +377,7 @@
   font-size: 11px;
 }
 [data-theme='kofferradio'] .track-title {
-  font-size: clamp(30px, 4.4vw, 54px);
+  font-size: clamp(26px, min(4.4vw, 7vh, 12cqi), 54px);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.02;
@@ -529,7 +573,7 @@
 [data-theme='phosphor'] .track-title {
   font-family: 'VT323', monospace;
   font-weight: 400;
-  font-size: clamp(42px, 6.4vw, 88px);
+  font-size: clamp(30px, min(6.4vw, 11vh, 17cqi), 88px);
   line-height: 0.9;
 }
 [data-theme='phosphor'] .track-artist {
@@ -821,6 +865,9 @@
   font-weight: 800;
   text-transform: uppercase;
 }
+[data-theme='plakat'] .app.sidebar-open .stage-tabs button {
+  font-size: 12px;
+}
 [data-theme='plakat'] .tabs button.active {
   background: #111;
   color: #fff;
@@ -847,7 +894,7 @@
 [data-theme='plakat'] .track-title {
   font-family: 'Anton', 'Impact', sans-serif;
   font-weight: 400;
-  font-size: clamp(54px, 9vw, 150px);
+  font-size: clamp(32px, min(8vw, 12vh, 17cqi), 150px);
   line-height: 0.9;
   text-transform: uppercase;
 }
@@ -858,7 +905,7 @@
   background: #111;
   color: var(--bg);
   font-weight: 800;
-  font-size: clamp(18px, 2.4vw, 30px);
+  font-size: clamp(16px, min(2.2vw, 3.6vh), 30px);
   text-transform: uppercase;
   transform: rotate(-1.5deg);
   opacity: 1;
@@ -872,7 +919,7 @@
   font-weight: 700;
 }
 [data-theme='plakat'] .np-text {
-  max-width: 620px;
+  max-width: 760px;
 }
 [data-theme='plakat'] .stage .cover {
   border-radius: 0;
@@ -1013,7 +1060,7 @@
 }
 [data-theme='wohnzimmer'] .track-title {
   font-family: 'Syne', sans-serif;
-  font-size: clamp(36px, 5.4vw, 74px);
+  font-size: clamp(26px, min(5vw, 9vh, 13cqi), 74px);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 0.98;

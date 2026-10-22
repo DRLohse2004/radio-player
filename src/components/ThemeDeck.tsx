@@ -178,15 +178,27 @@ function clip(text: string, max: number) {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
-/** Text aus einzelnen Fallblättern; geänderte Zeichen klappen neu um */
+/** Text aus einzelnen Fallblättern, umbrochen nur zwischen Wörtern; geänderte Zeichen klappen neu um */
 function Flaps({ text, className }: { text: string; className: string }) {
+  let index = 0;
   return (
     <div className={`flaps ${className}`} aria-label={text} role="img">
-      {Array.from(text.toUpperCase()).map((c, i) => (
-        <span key={`${i}-${c}`} className="flap" style={{ animationDelay: `${i * 25}ms` }} aria-hidden="true">
-          {c === ' ' ? ' ' : c}
-        </span>
-      ))}
+      {text
+        .toUpperCase()
+        .split(' ')
+        .filter(Boolean)
+        .map((word, w) => (
+          <span key={`${w}-${word}`} className="flap-word" aria-hidden="true">
+            {Array.from(word).map((c) => {
+              const i = index++;
+              return (
+                <span key={`${i}-${c}`} className="flap" style={{ animationDelay: `${i * 25}ms` }}>
+                  {c}
+                </span>
+              );
+            })}
+          </span>
+        ))}
     </div>
   );
 }
