@@ -423,20 +423,16 @@
   cursor: grab;
   transition: opacity 0.15s;
 }
-.station-item:hover .drag-handle,
-.wish-list li:hover .drag-handle {
+.station-item:hover .drag-handle {
   opacity: 1;
 }
-.station-item.dragging,
-.wish-list li.dragging {
+.station-item.dragging {
   opacity: 0.4;
 }
-.station-item.drop-before,
-.wish-list li.drop-before {
+.station-item.drop-before {
   box-shadow: inset 0 2px 0 var(--accent);
 }
-.station-item.drop-after,
-.wish-list li.drop-after {
+.station-item.drop-after {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 

@@ -1310,9 +1310,7 @@ export default function App() {
         ) : tab === 'youtube' ? (
           <YouTubeSidebar
             items={youtubeItems}
-            queue={queue}
-            now={queueNow}
-            rights={{ edit: true, play: true, move: true, remove: () => true }}
+            rights={{ edit: true, play: true }}
             search={api.youtubeSearch}
             loadPlaylist={api.youtubePlaylist}
             onWish={async (r, whole) => {
@@ -1332,10 +1330,6 @@ export default function App() {
             onRename={(id, title) => setYoutubeItems((list) => list.map((i) => (i.id === id ? { ...i, title } : i)))}
             onDelete={deleteYoutube}
             onMove={moveYoutube}
-            onStartQueue={startQueue}
-            onRemoveWish={remote.removeWish}
-            onMoveWish={remote.moveWish}
-            onMoveSong={remote.moveSongTo}
             onClose={closeSidebar}
             footer={<YtDlpFooter />}
           />
@@ -1483,6 +1477,15 @@ export default function App() {
         ) : onYtTab ? (
           <YouTubeStage
             state={yt.state}
+            current={!!queueNow}
+            queue={queue}
+            canMove
+            canRemove={() => true}
+            startLabel={queue.length && queueNow !== 'playing' ? (queueNow === 'paused' ? 'Weiter' : 'Jetzt spielen') : null}
+            onStart={startQueue}
+            onMove={remote.moveWish}
+            onRemove={remote.removeWish}
+            onMoveSong={remote.moveSongTo}
             hasItems={youtubeItems.length > 0}
             sidebarOpen={prefs.sidebarOpen}
             position={yt.position}

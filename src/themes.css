@@ -925,12 +925,6 @@
   background: var(--bg);
   box-shadow: inset 0 0 0 3px #111;
 }
-[data-theme='plakat'] .yt-queue {
-  border-top-color: rgba(0, 0, 0, 0.2);
-}
-[data-theme='plakat'] .yt-queue button:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
 [data-theme='plakat'] .station-item.active::before {
   display: none;
 }
@@ -1653,12 +1647,6 @@
 [data-theme='plakat'] .yt-add input,
 [data-theme='plakat'] .yt-rename input {
   border: 2px solid #111;
-}
-[data-theme='kofferradio'] .yt-queue {
-  border-top-color: var(--border);
-}
-[data-theme='kofferradio'] .yt-queue button:hover {
-  background: rgba(0, 0, 0, 0.06);
 }
 [data-theme='kofferradio'] .yt-row .station-actions,
 [data-theme='kofferradio'] .yt-row .confirm,

@@ -1,9 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, isDesktop } from '../api';
 import { watchUrl } from '../queue';
-import type { Wish, YouTubeItem, YouTubeResult } from '../types';
+import type { YouTubeItem, YouTubeResult } from '../types';
 import { CheckIcon, CloseIcon, EditIcon, PlusIcon, SearchIcon, TrashIcon, YouTubeIcon } from './Icons';
-import { Queue } from './Queue';
 
 /** Was der Betrachter darf – am Host alles, im Room je nach Admin-Anmeldung und Regeln des Hosts */
 export interface YouTubeRights {
@@ -11,17 +10,10 @@ export interface YouTubeRights {
   edit: boolean;
   /** gespeicherten Eintrag sofort spielen (ganz oben in die Queue) */
   play: boolean;
-  /** Queue und Songs sortieren */
-  move: boolean;
-  /** Eintrag aus der Queue entfernen */
-  remove(wish: Wish): boolean;
 }
 
 interface Props {
   items: YouTubeItem[];
-  queue: Wish[];
-  /** Zustand des obersten Queue-Eintrags (null = Queue ruht) */
-  now: 'playing' | 'paused' | null;
   rights: YouTubeRights;
   search(query: string): Promise<YouTubeResult[]>;
   loadPlaylist(id: string): Promise<YouTubeResult[]>;
@@ -34,10 +26,6 @@ interface Props {
   onRename(id: string, title: string): void;
   onDelete(id: string): void;
   onMove(id: string, toIndex: number): void;
-  onStartQueue(): void;
-  onRemoveWish(id: string): void;
-  onMoveWish(id: string, toIndex: number): void;
-  onMoveSong(wishId: string, songId: string, toIndex: number, out: boolean): void;
   onClose(): void;
   /** z. B. die Reiter des Rooms unter der Kopfzeile */
   children?: ReactNode;
@@ -64,7 +52,7 @@ function subtitle(item: YouTubeItem) {
 const resultUrl = (r: YouTubeResult) => (r.kind === 'playlist' ? `https://www.youtube.com/playlist?list=${r.id}` : watchUrl(r.id));
 
 export function YouTubeSidebar(props: Props) {
-  const { items, queue, now, rights } = props;
+  const { items, rights } = props;
   const [note, setNote] = useState<{ text: string; error: boolean } | null>(null);
   useEffect(() => {
     if (!note) return;
@@ -206,30 +194,6 @@ export function YouTubeSidebar(props: Props) {
             </ul>
           </div>
         )}
-
-        <div className="yt-wishes">
-          <div className="sidebar-label flush yt-wishes-head">
-            <span>Queue{queue.length ? ` (${queue.length})` : ''}</span>
-            {queue.length > 0 && now !== 'playing' && rights.play && (
-              <button className="mini" onClick={props.onStartQueue} title="Queue abspielen">
-                {now === 'paused' ? 'Weiter' : 'Jetzt spielen'}
-              </button>
-            )}
-          </div>
-          {queue.length === 0 ? (
-            <p className="side-note">Leer – Suchtreffer, Wünsche und „+“ bei gespeicherten Einträgen landen hier.</p>
-          ) : (
-            <Queue
-              wishes={queue}
-              now={now}
-              canMove={rights.move}
-              canRemove={rights.remove}
-              onMove={props.onMoveWish}
-              onRemove={props.onRemoveWish}
-              onMoveSong={props.onMoveSong}
-            />
-          )}
-        </div>
 
         <div className="sidebar-label">Gespeichert</div>
         {items.length === 0 ? (

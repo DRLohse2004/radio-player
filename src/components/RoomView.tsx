@@ -10,6 +10,7 @@ import { StationEditor } from './StationEditor';
 import { StationList } from './StationList';
 import { StationStore } from './StationStore';
 import { YouTubeSidebar } from './YouTubeSidebar';
+import { NowCard, QueueStage } from './YouTubeStage';
 import { VOLUME_STEP } from '../shortcuts';
 
 type Room = ReturnType<typeof useRoom>;
@@ -92,6 +93,8 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
   const may = (rule: boolean | undefined) => room.admin || rule !== false;
   const [editing, setEditing] = useState<Station | 'new' | null>(null);
   const [storeOpen, setStoreOpen] = useState(false);
+  // Hosts vor 1.10 schicken keine Stream-Adressen mit – der Sender-Store braucht sie aber
+  const hostStations = (host?.stations ?? []).map((st) => ({ ...st, url: st.url ?? '' }));
   const roomTabs = (
     <div className="room-head">
       <div className="room-panels" role="tablist">
@@ -229,7 +232,7 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
 
       {sidebarOpen && panel === 'stations' && (
         <StationList
-          stations={host?.stations ?? []}
+          stations={hostStations}
           currentId={host?.currentStationId ?? null}
           status={host?.source === 'radio' ? (host.status ?? 'idle') : 'idle'}
           canEdit={room.admin}
@@ -248,14 +251,7 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
       {sidebarOpen && panel === 'youtube' && (
         <YouTubeSidebar
           items={host?.youtube ?? []}
-          queue={host?.wishes ?? []}
-          now={host?.source === 'youtube' && host.wishes?.length ? (host.playing ? 'playing' : 'paused') : null}
-          rights={{
-            edit: room.admin,
-            play: may(rules?.guestStations),
-            move: room.admin,
-            remove: (w) => room.admin || w.clientId === prefs.clientId,
-          }}
+          rights={{ edit: room.admin, play: may(rules?.guestStations) }}
           search={room.search}
           loadPlaylist={room.playlist}
           onWish={(r, whole) => room.wish(r.id, whole).then(() => undefined)}
@@ -265,10 +261,6 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
           onRename={(id, title) => run('youtubeRename', { id, title })}
           onDelete={(id) => run('youtubeDelete', id)}
           onMove={(id, to) => run('youtubeMove', { id, to })}
-          onStartQueue={() => run('wishStart')}
-          onRemoveWish={(id) => run('wishRemove', id)}
-          onMoveWish={(id, to) => run('wishMove', { id, to })}
-          onMoveSong={(wish, song, to, out) => run('songMove', { wish, song, to, out })}
           onClose={() => onSidebar(false)}
         >
           {roomTabs}
@@ -309,7 +301,7 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
       )}
       {storeOpen && (
         <StationStore
-          stations={host?.stations ?? []}
+          stations={hostStations}
           volume={prefs.volume}
           onAdd={(station, name) => run('stationSave', { name, url: station.url })}
           onPreviewChange={() => {}}
@@ -354,35 +346,74 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
           </div>
         </header>
 
-        <section className="now-playing">
-          <Cover cover={host?.cover ?? null} station={station} className="main-cover" />
-          <div className="np-text">
-            <div className="np-station">
-              {station?.name}
-              <span className="room-host"> · bei {prefs.join?.name}</span>
-            </div>
-            {nowPlaying ? (
-              <div className="track-info" key={nowPlaying.raw}>
-                <div className="track-title" title={nowPlaying.title}>
-                  {nowPlaying.title}
-                </div>
-                <div className="track-artist">{nowPlaying.artist}</div>
-                {nowPlaying.album && <div className="track-album">{nowPlaying.album}</div>}
-                {host?.wishedBy && <div className="track-album">Gewünscht von {host.wishedBy}</div>}
-              </div>
-            ) : (
-              <div className="track-info">
-                <div className="track-title">{host ? (host.playing ? station?.name : 'Gerade läuft nichts') : 'Verbinde …'}</div>
-              </div>
-            )}
-            {host?.progress && <Progress progress={host.progress} playing={!!host.playing} />}
+        {host?.source === 'youtube' ? (
+          <>
             {message && (
               <p className="room-message" onClick={() => setMessage(null)}>
                 {message}
               </p>
             )}
-          </div>
-        </section>
+            <QueueStage
+              queue={host.wishes ?? []}
+              hero={
+                host.wishes?.length && host.title ? (
+                  <NowCard
+                    cover={host.cover ?? null}
+                    title={host.title}
+                    channel={host.artist ?? null}
+                    from={host.album}
+                    playing={!!host.playing}
+                    live={host.live}
+                    progress={host.progress && <Progress progress={host.progress} playing={!!host.playing} />}
+                  />
+                ) : null
+              }
+              canMove={room.admin}
+              canRemove={(w) => room.admin || w.clientId === prefs.clientId}
+              startLabel={host.wishes?.length && !host.playing && may(rules?.guestSkip) ? 'Jetzt spielen' : null}
+              onStart={() => run('wishStart')}
+              onMove={(id, to) => run('wishMove', { id, to })}
+              onRemove={(id) => run('wishRemove', id)}
+              onMoveSong={(wish, song, to, out) => run('songMove', { wish, song, to, out })}
+              empty={
+                <div className="spotify-hero">
+                  <h2>Die Queue ist leer</h2>
+                  <p>Links unter „YouTube“ suchen oder einen gespeicherten Eintrag des Hosts wählen.</p>
+                </div>
+              }
+            />
+          </>
+        ) : (
+          <section className="now-playing">
+            <Cover cover={host?.cover ?? null} station={station} className="main-cover" />
+            <div className="np-text">
+              <div className="np-station">
+                {station?.name}
+                <span className="room-host"> · bei {prefs.join?.name}</span>
+              </div>
+              {nowPlaying ? (
+                <div className="track-info" key={nowPlaying.raw}>
+                  <div className="track-title" title={nowPlaying.title}>
+                    {nowPlaying.title}
+                  </div>
+                  <div className="track-artist">{nowPlaying.artist}</div>
+                  {nowPlaying.album && <div className="track-album">{nowPlaying.album}</div>}
+                  {host?.wishedBy && <div className="track-album">Gewünscht von {host.wishedBy}</div>}
+                </div>
+              ) : (
+                <div className="track-info">
+                  <div className="track-title">{host ? (host.playing ? station?.name : 'Gerade läuft nichts') : 'Verbinde …'}</div>
+                </div>
+              )}
+              {host?.progress && <Progress progress={host.progress} playing={!!host.playing} />}
+              {message && (
+                <p className="room-message" onClick={() => setMessage(null)}>
+                  {message}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
 
         <footer className="player-bar">
           <Controls
