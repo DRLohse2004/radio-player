@@ -36,7 +36,11 @@ export interface Preferences {
   room: RoomPrefs;
   /** sichtbare Reiter – ausgeblendete Empfänger (Spotify, AirPlay, Bluetooth) laufen nicht */
   tabs: Record<SourceTab, boolean>;
+  /** Design der Oberfläche – 'standard' ist das ursprüngliche dunkle Design */
+  theme: ThemeId;
 }
+
+export type ThemeId = 'standard' | 'kofferradio' | 'phosphor' | 'roehre' | 'plakat' | 'wohnzimmer' | 'tafel';
 
 export type SourceTab = 'radio' | 'youtube' | 'spotify' | 'airplay' | 'bluetooth';
 
@@ -94,6 +98,19 @@ export interface HostState {
   rules?: { guestVolume: boolean; guestSkip: boolean; guestStations: boolean; maxWishes: number; maxMinutes: number; adminPin: boolean };
   /** Zum Mithören: was ein anderes Radio selbst abspielen muss */
   listen?: HostListen;
+  /** Empfang am Host – Admins im Room schalten ihn ein und aus */
+  receivers?: { spotify: HostReceiver; airplay: HostReceiver };
+}
+
+export interface HostReceiver {
+  enabled: boolean;
+  /** Name, unter dem das Radio im Netzwerk erscheint */
+  name: string;
+  /** Dienst läuft und ist im Netzwerk sichtbar */
+  running: boolean;
+  /** verbundenes Gerät bzw. Konto, sonst null */
+  client: string | null;
+  error: string | null;
 }
 
 export type HostListen =

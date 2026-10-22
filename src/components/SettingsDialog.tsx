@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, isDesktop } from '../api';
+import { THEMES } from '../themes';
 import type { Preferences, SourceTab, UpdateState } from '../types';
 import { CloseIcon } from './Icons';
 
@@ -69,6 +70,32 @@ export function SettingsDialog({ prefs, update, onChange, onClose }: Props) {
             <CloseIcon size={18} />
           </button>
         </header>
+
+        <section className="settings-section">
+          <h3>Design</h3>
+          <div className="theme-choices" role="radiogroup" aria-label="Design">
+            {THEMES.map((t) => {
+              const [bg, surface, text, accent] = t.swatch;
+              return (
+                <label key={t.id} className={`theme-choice${prefs.theme === t.id ? ' active' : ''}`}>
+                  <input type="radio" name="theme" checked={prefs.theme === t.id} onChange={() => set('theme', t.id)} />
+                  <span className="theme-preview" style={{ background: bg }} aria-hidden="true">
+                    <span className="theme-preview-cover" style={{ background: surface }} />
+                    <span className="theme-preview-lines">
+                      <span style={{ background: accent, width: '40%' }} />
+                      <span style={{ background: text, width: '80%' }} />
+                      <span style={{ background: text, width: '55%', opacity: 0.6 }} />
+                    </span>
+                  </span>
+                  <span className="theme-name" style={{ fontFamily: t.font }}>
+                    {t.name}
+                  </span>
+                  <small>{t.hint}</small>
+                </label>
+              );
+            })}
+          </div>
+        </section>
 
         <section className="settings-section">
           <h3>Reiter</h3>

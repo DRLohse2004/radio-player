@@ -1,0 +1,1384 @@
+/* =====================================================================
+   Designs. Das Standard-Design hat kein data-theme und bleibt unverändert –
+   alles hier greift nur unter :root[data-theme='…'].
+   ===================================================================== */
+
+/* index.html färbt #root für den Start dunkel – in den Designs übernimmt body den Hintergrund */
+:root[data-theme] #root {
+  background: transparent;
+}
+
+/* Große Titel: nur zwischen Wörtern umbrechen, Kopfzeile bleibt immer obenauf */
+:root[data-theme] .track-title,
+:root[data-theme] .track-artist {
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+:root[data-theme] .np-text {
+  /* Titelgröße richtet sich nach der Breite der Textspalte (cqi) */
+  container-type: inline-size;
+}
+:root[data-theme] .stage-actions {
+  flex-shrink: 0;
+}
+:root[data-theme] .stage-top {
+  z-index: 2;
+}
+:root[data-theme] .stage-tabs {
+  min-width: 0;
+  overflow: hidden;
+}
+:root[data-theme] .stage-tabs button {
+  white-space: nowrap;
+}
+:root[data-theme] .app.sidebar-open .stage-tabs button {
+  padding: 6px 9px;
+  letter-spacing: 0.04em;
+}
+/* Seitenleiste offen und Fenster schmal: Statusanzeige weicht den Reitern */
+@media (max-width: 1200px) {
+  :root[data-theme] .app.sidebar-open .stage-top .status-chip {
+    display: none;
+  }
+  :root[data-theme] .app.sidebar-open .stage-tabs button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+}
+
+/* Hülle um Cover und Text – im Standard-Design ohne eigene Box */
+.np-main {
+  display: contents;
+}
+
+/* ---------- Auswahl in den Einstellungen ---------- */
+
+.theme-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.theme-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.theme-choice:hover {
+  border-color: var(--text-faint);
+}
+.theme-choice.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.theme-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.theme-choice:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.theme-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 58px;
+  padding: 0 10px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.25);
+}
+.theme-preview-cover {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.theme-preview-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.theme-preview-lines span {
+  height: 5px;
+  border-radius: 3px;
+}
+.theme-name {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.theme-choice small {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+/* ---------- Gemeinsame Bausteine der Designs ---------- */
+
+.tuning-scale {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0 clamp(16px, 3vw, 28px);
+  overflow: hidden;
+}
+.scale-track {
+  position: relative;
+  margin: 0 18px;
+}
+.scale-ticks {
+  height: 18px;
+}
+.scale-names {
+  display: flex;
+}
+.scale-names button {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 2px 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.scale-needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  pointer-events: none;
+  transition: left 0.6s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.scale-mhz {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 10px;
+}
+
+.station-deck {
+  flex-shrink: 0;
+  padding: 0 clamp(16px, 3vw, 28px);
+}
+.deck-keys {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+.deck-key {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+}
+.deck-name {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vu-meter {
+  position: relative;
+  flex-shrink: 0;
+  width: clamp(130px, 16vw, 210px);
+  aspect-ratio: 1.1;
+  overflow: hidden;
+}
+.vu-arc {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 22%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid #3a2f22;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  transform: rotate(-45deg);
+}
+.vu-red {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 22%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 5px solid transparent;
+  border-top-color: #c0392b;
+  transform: rotate(30deg);
+  clip-path: polygon(50% 0, 100% 0, 100% 50%, 50% 50%);
+}
+.vu-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56%;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 18px;
+  color: #3a2f22;
+}
+.vu-needle {
+  position: absolute;
+  left: calc(50% - 1px);
+  bottom: 6%;
+  width: 2px;
+  height: 72%;
+  background: #1a1a1a;
+  transform-origin: 50% 100%;
+  transform: rotate(-45deg);
+}
+
+.spectrum {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 64px;
+  margin-top: 18px;
+}
+.spectrum span {
+  width: 9px;
+  height: 4%;
+  background: currentColor;
+}
+
+.station-board {
+  flex-shrink: 0;
+  margin: 0 clamp(16px, 3vw, 28px);
+}
+.board-head,
+.board-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 14px;
+}
+.board-rows {
+  /* wie eine Abfahrtstafel: erst die linke Spalte von oben nach unten */
+  grid-template-rows: repeat(var(--rows, 4), auto);
+  grid-auto-flow: column;
+}
+.board-head {
+  grid-template-columns: 44px minmax(0, 1fr) 90px 44px minmax(0, 1fr) 90px;
+  padding: 0 12px 4px;
+}
+.board-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 90px;
+  align-items: center;
+  padding: 6px 12px;
+  text-align: left;
+}
+.board-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.board-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+.flaps {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 4px;
+}
+.flap-word {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.flap {
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  background: linear-gradient(#26272a 0 49%, #0a0a0a 49% 51%, #1e1f22 51% 100%);
+  color: #f2f0e6;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  animation: flap-in 0.35s ease-out both;
+  transform-origin: 50% 50%;
+}
+@keyframes flap-in {
+  from {
+    transform: rotateX(90deg);
+  }
+}
+.flaps-title .flap {
+  width: clamp(22px, min(2.8vw, 5vh), 50px);
+  height: clamp(32px, min(4.1vw, 7.2vh), 72px);
+  font-size: clamp(24px, min(3vw, 5.4vh), 54px);
+}
+.flaps-artist {
+  margin-top: 6px;
+}
+.flaps-artist .flap {
+  width: clamp(17px, 1.9vw, 28px);
+  height: clamp(26px, 2.8vw, 40px);
+  font-size: clamp(18px, 2vw, 28px);
+}
+
+.speaker-grille,
+.key-hints {
+  display: none;
+}
+
+/* =====================================================================
+   1 · Kofferradio – hell, sachlich, Skala und Stationstasten
+   ===================================================================== */
+
+:root[data-theme='kofferradio'] {
+  --bg: #e7e4dc;
+  --surface: #f6f4ef;
+  --surface-2: #efece5;
+  --surface-3: #d6d2c8;
+  --border: rgba(0, 0, 0, 0.12);
+  --text: #1f1f1d;
+  --text-muted: #55534d;
+  --text-faint: #6b675e;
+  --accent: #e8590c;
+  --accent-strong: #c2410c;
+  --accent-soft: rgba(232, 89, 12, 0.14);
+  --live: #2f7d43;
+  --warn: #b7791f;
+  --radius: 6px;
+  font-family: 'Archivo', 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+[data-theme='kofferradio'] .np-station,
+[data-theme='kofferradio'] .stage-tabs button,
+[data-theme='kofferradio'] .sidebar-label {
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+[data-theme='kofferradio'] .np-station {
+  color: var(--accent-strong);
+}
+[data-theme='kofferradio'] .stage-tabs button {
+  font-size: 11px;
+}
+[data-theme='kofferradio'] .track-title {
+  font-size: clamp(26px, min(4.4vw, 7vh, 12cqi), 54px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+[data-theme='kofferradio'] .stage .cover {
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08), 0 10px 24px rgba(60, 50, 30, 0.18);
+}
+[data-theme='kofferradio'] .main-cover {
+  width: min(300px, 34vh, 30vw);
+}
+[data-theme='kofferradio'] .like-button {
+  border-radius: 4px;
+  border-color: #b8b3a7;
+  background: transparent;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+[data-theme='kofferradio'] .speaker-grille {
+  display: block;
+  align-self: stretch;
+  width: clamp(120px, 18vw, 250px);
+  margin: 24px 0;
+  border-radius: 8px;
+  background-color: var(--surface-3);
+  background-image: radial-gradient(circle, #8e897d 2.2px, transparent 2.6px);
+  background-size: 12px 12px;
+  background-position: 6px 6px;
+}
+[data-theme='kofferradio'] .app.sidebar-open .speaker-grille {
+  display: none;
+}
+[data-theme='kofferradio'] .tuning-scale {
+  border-radius: 6px;
+  background: #2b2a27;
+  color: #e7e4dc;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+[data-theme='kofferradio'] .scale-ticks {
+  margin-top: 10px;
+  background-image: linear-gradient(90deg, #8a867c 1px, transparent 1px), linear-gradient(90deg, #e7e4dc 1px, transparent 1px);
+  background-size: 10px 12px, 100px 18px;
+  background-repeat: repeat-x;
+}
+[data-theme='kofferradio'] .scale-names button {
+  color: #cfcabf;
+}
+[data-theme='kofferradio'] .scale-names button.active,
+[data-theme='kofferradio'] .scale-names button:hover {
+  color: #ff8a3d;
+}
+[data-theme='kofferradio'] .scale-needle {
+  background: var(--accent);
+}
+[data-theme='kofferradio'] .station-deck {
+  margin-top: 14px;
+}
+[data-theme='kofferradio'] .deck-key {
+  justify-content: space-between;
+  height: 62px;
+  padding: 9px 10px 10px;
+  border-radius: 5px;
+  border-top: 3px solid transparent;
+  background: var(--surface);
+  box-shadow: 0 3px 0 #c9c4b8;
+  font-size: 12px;
+  font-weight: 600;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+[data-theme='kofferradio'] .deck-key.active {
+  transform: translateY(2px);
+  border-top-color: var(--accent);
+  background: #cfcabf;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+[data-theme='kofferradio'] .deck-nr {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+[data-theme='kofferradio'] .player-bar {
+  padding-top: 14px;
+  padding-bottom: 18px;
+}
+[data-theme='kofferradio'] .player-bar .control.play {
+  box-shadow: 0 4px 0 #9a3412;
+}
+
+/* =====================================================================
+   3 · Phosphor – Terminal in Bernstein
+   ===================================================================== */
+
+:root[data-theme='phosphor'] {
+  --bg: #0b0c09;
+  --surface: #11120d;
+  --surface-2: #14150f;
+  --surface-3: #2a2410;
+  --border: rgba(255, 176, 0, 0.45);
+  --text: #ffb000;
+  --text-muted: #d99a12;
+  --text-faint: #a87a14;
+  --accent: #ffb000;
+  --accent-strong: #ffc94d;
+  --accent-soft: rgba(255, 176, 0, 0.14);
+  --live: #ffd166;
+  --warn: #ffd166;
+  --radius: 0;
+  font-family: 'IBM Plex Mono', Consolas, monospace;
+}
+[data-theme='phosphor'] body {
+  text-shadow: 0 0 6px rgba(255, 176, 0, 0.4);
+}
+[data-theme='phosphor'] .stage-backdrop {
+  display: none;
+}
+[data-theme='phosphor'] .app > .sidebar,
+[data-theme='phosphor'] .modal,
+[data-theme='phosphor'] .library {
+  border-radius: 0;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  backdrop-filter: none;
+  box-shadow: none;
+}
+[data-theme='phosphor'] .station-item,
+[data-theme='phosphor'] .station-select,
+[data-theme='phosphor'] .icon-button,
+[data-theme='phosphor'] .button,
+[data-theme='phosphor'] .tabs,
+[data-theme='phosphor'] .tabs button,
+[data-theme='phosphor'] .status-chip,
+[data-theme='phosphor'] .like-button,
+[data-theme='phosphor'] .player-bar .control,
+[data-theme='phosphor'] .station-logo,
+[data-theme='phosphor'] .kind-badge,
+[data-theme='phosphor'] .field input {
+  border-radius: 0;
+}
+[data-theme='phosphor'] .tabs button.active {
+  background: var(--accent);
+  color: var(--bg);
+  text-shadow: none;
+}
+/* Aktiver Eintrag nur umrahmt: aufgeklappte YouTube-Playlists liegen mit darin */
+[data-theme='phosphor'] .sidebar .station-item.active,
+[data-theme='phosphor'] .sidebar .station-item.active:hover {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+[data-theme='phosphor'] .station-item.active::before {
+  display: none;
+}
+[data-theme='phosphor'] .stage-tabs,
+[data-theme='phosphor'] .status-chip {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+[data-theme='phosphor'] .stage-tabs button,
+[data-theme='phosphor'] .np-station,
+[data-theme='phosphor'] .track-title,
+[data-theme='phosphor'] .track-artist,
+[data-theme='phosphor'] .sidebar-label,
+[data-theme='phosphor'] .station-name {
+  text-transform: uppercase;
+}
+[data-theme='phosphor'] .station-logo {
+  filter: grayscale(1) sepia(1) saturate(4) hue-rotate(-12deg) brightness(0.85);
+}
+[data-theme='phosphor'] .now-playing {
+  margin: 0 clamp(16px, 3vw, 28px);
+  border: 1px solid var(--accent);
+}
+[data-theme='phosphor'] .stage .cover {
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid var(--accent);
+}
+[data-theme='phosphor'] .stage .cover > img,
+[data-theme='phosphor'] .stage .cover-fallback {
+  filter: grayscale(1) sepia(1) saturate(3.5) hue-rotate(-12deg) brightness(0.9) contrast(1.1);
+}
+[data-theme='phosphor'] .stage .cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 4px);
+  pointer-events: none;
+}
+[data-theme='phosphor'] .track-title {
+  font-family: 'VT323', monospace;
+  font-weight: 400;
+  font-size: clamp(30px, min(6.4vw, 11vh, 17cqi), 88px);
+  line-height: 0.9;
+}
+[data-theme='phosphor'] .track-artist {
+  font-family: 'VT323', monospace;
+  font-size: clamp(24px, 2.8vw, 36px);
+  opacity: 1;
+}
+[data-theme='phosphor'] .np-station {
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+[data-theme='phosphor'] .kind-badge {
+  background: transparent;
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+[data-theme='phosphor'] .like-button {
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+[data-theme='phosphor'] .spectrum {
+  color: var(--accent);
+}
+[data-theme='phosphor'] .player-bar {
+  margin: 12px clamp(16px, 3vw, 28px) 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+}
+[data-theme='phosphor'] .key-hints {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme='phosphor'] .player-bar .control {
+  color: var(--accent);
+}
+[data-theme='phosphor'] .player-bar .control.play {
+  width: 56px;
+  height: 56px;
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: 0 0 18px rgba(255, 176, 0, 0.35);
+}
+[data-theme='phosphor'] .volume input {
+  border-radius: 0;
+  background: linear-gradient(90deg, var(--accent) var(--fill), var(--surface-3) var(--fill));
+}
+[data-theme='phosphor'] .volume input::-webkit-slider-thumb {
+  border-radius: 0;
+  background: var(--accent);
+}
+
+/* =====================================================================
+   4 · Röhrenempfänger – Nussbaum, leuchtende Skala, VU-Meter
+   ===================================================================== */
+
+:root[data-theme='roehre'] {
+  --bg: #23211e;
+  --surface: #1c1a17;
+  --surface-2: #2a2723;
+  --surface-3: #3a3732;
+  --border: rgba(255, 230, 190, 0.1);
+  --text: #e8e2d4;
+  --text-muted: #b3ab9a;
+  --text-faint: #8c8473;
+  --accent: #f2c46d;
+  --accent-strong: #ffd98c;
+  --accent-soft: rgba(242, 196, 109, 0.15);
+  --live: #7ff5df;
+  --warn: #f2c46d;
+  font-family: 'Saira Condensed', 'Segoe UI', sans-serif;
+}
+[data-theme='roehre'] body {
+  background-color: #4a2a17;
+  background-image: repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.12) 0 3px, transparent 3px 11px, rgba(255, 220, 180, 0.05) 11px 13px, transparent 13px 23px);
+}
+[data-theme='roehre'] .app > .stage {
+  inset: 16px;
+  border-radius: 6px;
+  background-color: var(--bg);
+  background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.08), 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+[data-theme='roehre'] .app > .sidebar {
+  top: 30px;
+  left: 30px;
+  bottom: 30px;
+  border-radius: 6px;
+  background: rgba(28, 26, 23, 0.94);
+}
+[data-theme='roehre'] .stage-backdrop {
+  display: none;
+}
+[data-theme='roehre'] .stage-top {
+  order: -2;
+}
+[data-theme='roehre'] .tuning-scale {
+  order: -1;
+  border-radius: 4px;
+  background: #2b1906;
+  box-shadow: inset 0 0 30px rgba(255, 170, 60, 0.35), inset 0 0 0 2px #0e0d0b;
+  color: #f7e3b5;
+}
+[data-theme='roehre'] .scale-mhz {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+}
+[data-theme='roehre'] .scale-ticks {
+  margin-top: 6px;
+  height: 14px;
+  background-image: linear-gradient(90deg, rgba(247, 227, 181, 0.7) 1px, transparent 1px);
+  background-size: 9.4px 14px;
+}
+[data-theme='roehre'] .scale-names button {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8c88a;
+}
+[data-theme='roehre'] .scale-names button.active,
+[data-theme='roehre'] .scale-names button:hover {
+  color: #fff3d6;
+  text-shadow: 0 0 8px #ffb347;
+}
+[data-theme='roehre'] .scale-needle {
+  background: #e0332a;
+  box-shadow: 0 0 8px rgba(224, 51, 42, 0.8);
+}
+[data-theme='roehre'] .now-playing {
+  gap: 18px;
+  padding: 16px clamp(16px, 3vw, 28px);
+  align-items: stretch;
+}
+[data-theme='roehre'] .vu-meter {
+  align-self: center;
+  border-radius: 4px;
+  background: #efe3c2;
+  box-shadow: inset 0 0 18px rgba(160, 110, 40, 0.45), inset 0 0 0 3px #111;
+}
+[data-theme='roehre'] .vfd {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2vw, 24px);
+  padding: clamp(14px, 2vw, 24px);
+  border-radius: 4px;
+  background: #061311;
+  box-shadow: inset 0 0 0 3px #111, inset 0 0 24px rgba(0, 0, 0, 0.8);
+  color: #7ff5df;
+  font-family: 'Share Tech Mono', monospace;
+  text-shadow: 0 0 8px rgba(127, 245, 223, 0.55);
+}
+[data-theme='roehre'] .vfd .main-cover {
+  width: min(170px, 26vh, 18vw);
+  border-radius: 0;
+  box-shadow: 0 0 0 2px #0d2a25;
+}
+[data-theme='roehre'] .vfd .cover > img {
+  filter: sepia(0.35);
+}
+[data-theme='roehre'] .vfd .np-station {
+  color: #7ff5df;
+  opacity: 0.85;
+  letter-spacing: 0.16em;
+}
+@media (max-width: 1400px) {
+  [data-theme='roehre'] .app.sidebar-open .vu-meter {
+    display: none;
+  }
+}
+[data-theme='roehre'] .vfd .track-title,
+[data-theme='roehre'] .vfd .track-artist {
+  overflow-wrap: break-word;
+}
+[data-theme='roehre'] .vfd .track-title {
+  font-weight: 400;
+  font-size: clamp(26px, 3.4vw, 46px);
+  text-transform: uppercase;
+}
+[data-theme='roehre'] .vfd .track-artist {
+  color: #7ff5df;
+  text-transform: uppercase;
+}
+[data-theme='roehre'] .vfd .track-album,
+[data-theme='roehre'] .vfd .track-artist.muted {
+  color: #5cc9b5;
+}
+[data-theme='roehre'] .vfd .kind-badge {
+  background: transparent;
+  color: #7ff5df;
+  box-shadow: inset 0 0 0 1px rgba(127, 245, 223, 0.5);
+}
+[data-theme='roehre'] .vfd .like-button {
+  border-color: rgba(127, 245, 223, 0.4);
+  background: transparent;
+  color: #7ff5df;
+  font-family: inherit;
+}
+[data-theme='roehre'] .station-deck {
+  margin-top: 4px;
+}
+[data-theme='roehre'] .deck-key {
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  border-radius: 3px;
+  border-bottom: 3px solid transparent;
+  background: #e4dfd2;
+  color: #1c1b19;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: inset 0 2px 0 #fff, 0 5px 0 #6d685d, 0 7px 10px rgba(0, 0, 0, 0.5);
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+[data-theme='roehre'] .deck-key.active {
+  transform: translateY(4px);
+  background: #b7b1a3;
+  border-bottom-color: var(--accent);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.45);
+}
+[data-theme='roehre'] .deck-nr {
+  display: none;
+}
+[data-theme='roehre'] .player-bar .control {
+  color: var(--text);
+}
+[data-theme='roehre'] .player-bar .control.play {
+  background-color: #8d887d;
+  background-image: repeating-conic-gradient(rgba(255, 255, 255, 0.12) 0 4deg, rgba(0, 0, 0, 0.08) 4deg 8deg);
+  color: #1a1a1a;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.35), 0 5px 12px rgba(0, 0, 0, 0.6);
+}
+[data-theme='roehre'] .player-bar .control.play:hover:not(:disabled) {
+  background-color: #a29d91;
+  color: #1a1a1a;
+}
+[data-theme='roehre'] .stage-tabs button,
+[data-theme='roehre'] .np-station {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* =====================================================================
+   5 · Plakat – Gelb, dicke Rahmen, harte Schatten
+   ===================================================================== */
+
+:root[data-theme='plakat'] {
+  --bg: #ffd23f;
+  --surface: #ffffff;
+  --surface-2: #fff6d6;
+  --surface-3: #ffe58a;
+  --border: #111;
+  --text: #111;
+  --text-muted: #333;
+  --text-faint: #4a4a4a;
+  --accent: #111;
+  --accent-strong: #000;
+  --accent-soft: rgba(0, 0, 0, 0.08);
+  --live: #0a7a3a;
+  --warn: #8a5a00;
+  font-family: 'Work Sans', 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+[data-theme='plakat'] .app > .sidebar,
+[data-theme='plakat'] .modal,
+[data-theme='plakat'] .library {
+  border: 3px solid #111;
+  border-radius: 14px;
+  background: #fff;
+  backdrop-filter: none;
+  box-shadow: 6px 6px 0 #111;
+}
+[data-theme='plakat'] .stage-tabs,
+[data-theme='plakat'] .status-chip {
+  background: #fff;
+  box-shadow: inset 0 0 0 3px #111;
+}
+[data-theme='plakat'] .stage-tabs button {
+  font-weight: 800;
+  text-transform: uppercase;
+}
+[data-theme='plakat'] .app.sidebar-open .stage-tabs button {
+  font-size: 12px;
+}
+[data-theme='plakat'] .tabs button.active {
+  background: #111;
+  color: #fff;
+}
+/* Aktiver Eintrag gelb statt schwarz: aufgeklappte YouTube-Playlists liegen mit darin */
+[data-theme='plakat'] .sidebar .station-item.active,
+[data-theme='plakat'] .sidebar .station-item.active:hover {
+  background: var(--bg);
+  box-shadow: inset 0 0 0 3px #111;
+}
+[data-theme='plakat'] .yt-queue {
+  border-top-color: rgba(0, 0, 0, 0.2);
+}
+[data-theme='plakat'] .yt-queue button:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+[data-theme='plakat'] .station-item.active::before {
+  display: none;
+}
+[data-theme='plakat'] .np-station {
+  color: #111;
+  font-weight: 800;
+}
+[data-theme='plakat'] .track-title {
+  font-family: 'Anton', 'Impact', sans-serif;
+  font-weight: 400;
+  font-size: clamp(32px, min(8vw, 12vh, 17cqi), 150px);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+[data-theme='plakat'] .track-artist {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 4px 14px;
+  background: #111;
+  color: var(--bg);
+  font-weight: 800;
+  font-size: clamp(16px, min(2.2vw, 3.6vh), 30px);
+  text-transform: uppercase;
+  transform: rotate(-1.5deg);
+  opacity: 1;
+}
+[data-theme='plakat'] .track-artist.muted {
+  color: var(--bg);
+}
+[data-theme='plakat'] .track-album {
+  margin-top: 10px;
+  color: #111;
+  font-weight: 700;
+}
+[data-theme='plakat'] .np-text {
+  max-width: 760px;
+}
+[data-theme='plakat'] .stage .cover {
+  border-radius: 0;
+  border: 4px solid #111;
+  box-shadow: 10px 10px 0 #111;
+  transform: rotate(2.5deg);
+}
+[data-theme='plakat'] .like-button,
+[data-theme='plakat'] .button,
+[data-theme='plakat'] .kind-badge {
+  border: 3px solid #111;
+  background: #fff;
+  color: #111;
+  font-weight: 800;
+  box-shadow: 3px 3px 0 #111;
+}
+[data-theme='plakat'] .like-button.active {
+  background: #ff6fb5;
+  color: #111;
+}
+[data-theme='plakat'] .station-deck {
+  margin-top: 8px;
+}
+[data-theme='plakat'] .deck-key {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  height: 54px;
+  padding: 0 10px;
+  border: 3px solid #111;
+  border-radius: 10px;
+  background: #fff;
+  color: #111;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 4px 4px 0 #111;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+[data-theme='plakat'] .deck-key:nth-child(4n + 1) {
+  background: #ff6fb5;
+}
+[data-theme='plakat'] .deck-key:nth-child(4n + 3) {
+  background: #8fb0ff;
+}
+[data-theme='plakat'] .deck-key.active {
+  background: #111;
+  color: #fff;
+  box-shadow: 0 0 0 #111;
+  transform: translate(4px, 4px);
+}
+[data-theme='plakat'] .deck-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 2px solid #111;
+  font-size: 10px;
+}
+[data-theme='plakat'] .player-bar {
+  margin: 14px clamp(16px, 3vw, 28px) 0;
+  padding: 14px 0 18px;
+  border-top: 3px solid #111;
+}
+[data-theme='plakat'] .player-bar .control {
+  border: 3px solid #111;
+  background: #fff;
+  color: #111;
+  box-shadow: 3px 3px 0 #111;
+}
+[data-theme='plakat'] .player-bar .control.play {
+  background: #111;
+  color: var(--bg);
+  box-shadow: 4px 4px 0 #fff;
+}
+[data-theme='plakat'] .player-bar .control.play:hover:not(:disabled) {
+  background: #000;
+  color: var(--bg);
+}
+[data-theme='plakat'] .volume input {
+  height: 14px;
+  border: 3px solid #111;
+  border-radius: 0;
+  background: linear-gradient(90deg, #111 var(--fill), #fff var(--fill));
+}
+[data-theme='plakat'] .volume input::-webkit-slider-thumb {
+  width: 10px;
+  height: 22px;
+  border-radius: 0;
+  background: #111;
+  box-shadow: none;
+}
+
+/* =====================================================================
+   6 · Wohnzimmer – Olivgrün, Terrakotta, Regal aus Eiche
+   ===================================================================== */
+
+:root[data-theme='wohnzimmer'] {
+  --bg: #1f2a24;
+  --surface: #26332c;
+  --surface-2: #2c3a32;
+  --surface-3: #3a4a40;
+  --border: rgba(239, 232, 220, 0.14);
+  --text: #efe8dc;
+  --text-muted: #b9c2b6;
+  --text-faint: #8f9a8c;
+  --accent: #e08a5c;
+  --accent-strong: #f0a57c;
+  --accent-soft: rgba(224, 138, 92, 0.16);
+  --live: #9fd3a8;
+  --warn: #e3b866;
+  font-family: 'Instrument Sans', 'Segoe UI', sans-serif;
+}
+[data-theme='wohnzimmer'] .stage-backdrop {
+  display: none;
+}
+[data-theme='wohnzimmer'] .app > .sidebar {
+  background: rgba(38, 51, 44, 0.9);
+  border-radius: 14px;
+}
+[data-theme='wohnzimmer'] .brand,
+[data-theme='wohnzimmer'] .modal-header h2 {
+  font-family: 'Syne', sans-serif;
+}
+[data-theme='wohnzimmer'] .stage-tabs {
+  background: transparent;
+}
+[data-theme='wohnzimmer'] .stage-tabs button {
+  border-radius: 0;
+  background: transparent;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+}
+[data-theme='wohnzimmer'] .stage-tabs button.active {
+  background: transparent;
+  border-bottom-color: var(--accent);
+}
+[data-theme='wohnzimmer'] .np-station {
+  letter-spacing: 0.12em;
+}
+[data-theme='wohnzimmer'] .track-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(26px, min(5vw, 9vh, 13cqi), 74px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+}
+[data-theme='wohnzimmer'] .now-playing {
+  align-items: flex-end;
+  padding-bottom: 0;
+}
+[data-theme='wohnzimmer'] .stage .cover {
+  border-radius: 3px;
+  box-shadow: 0 22px 40px rgba(0, 0, 0, 0.35);
+}
+[data-theme='wohnzimmer'] .np-text {
+  max-width: 560px;
+  padding-bottom: 8px;
+}
+[data-theme='wohnzimmer'] .like-button {
+  background: transparent;
+  border-color: rgba(239, 232, 220, 0.3);
+  color: var(--text);
+}
+[data-theme='wohnzimmer'] .player-bar .control {
+  box-shadow: inset 0 0 0 1px rgba(239, 232, 220, 0.3);
+  color: var(--text);
+}
+[data-theme='wohnzimmer'] .player-bar .control.play {
+  box-shadow: none;
+  color: #1d2621;
+}
+[data-theme='wohnzimmer'] .player-bar .control.play:hover:not(:disabled) {
+  color: #1d2621;
+}
+[data-theme='wohnzimmer'] .station-deck {
+  padding: 0;
+}
+[data-theme='wohnzimmer'] .deck-shelf {
+  height: 14px;
+  background-color: #a5784c;
+  background-image: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 37px, rgba(255, 255, 255, 0.05) 37px 39px, transparent 39px 71px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+}
+[data-theme='wohnzimmer'] .deck-keys {
+  display: flex;
+  gap: clamp(10px, 2vw, 22px);
+  padding: 18px clamp(16px, 3vw, 40px) 0;
+  overflow: hidden;
+}
+[data-theme='wohnzimmer'] .deck-key {
+  width: clamp(60px, 8vw, 92px);
+  flex-shrink: 0;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+[data-theme='wohnzimmer'] .deck-key.active {
+  color: var(--text);
+  font-weight: 600;
+}
+[data-theme='wohnzimmer'] .deck-logo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  font-size: 20px;
+  opacity: 0.85;
+}
+[data-theme='wohnzimmer'] .deck-key.active .deck-logo {
+  opacity: 1;
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+/* =====================================================================
+   7 · Anzeigetafel – Fallblatt, Signalgelb
+   ===================================================================== */
+
+:root[data-theme='tafel'] {
+  --bg: #151618;
+  --surface: #1b1c1f;
+  --surface-2: #202124;
+  --surface-3: #2a2b2e;
+  --border: rgba(242, 240, 230, 0.1);
+  --text: #f2f0e6;
+  --text-muted: #b5b6b1;
+  --text-faint: #8d8e89;
+  --accent: #f5c400;
+  --accent-strong: #ffd633;
+  --accent-soft: rgba(245, 196, 0, 0.14);
+  --live: #f5c400;
+  --warn: #ff9f1a;
+  font-family: 'Barlow', 'Segoe UI', sans-serif;
+}
+[data-theme='tafel'] .stage-backdrop {
+  display: none;
+}
+[data-theme='tafel'] .app > .sidebar,
+[data-theme='tafel'] .modal,
+[data-theme='tafel'] .library {
+  border-radius: 2px;
+  background: var(--surface);
+  backdrop-filter: none;
+  border-top: 4px solid var(--accent);
+}
+[data-theme='tafel'] .station-item,
+[data-theme='tafel'] .station-select,
+[data-theme='tafel'] .icon-button,
+[data-theme='tafel'] .button,
+[data-theme='tafel'] .tabs,
+[data-theme='tafel'] .tabs button,
+[data-theme='tafel'] .status-chip,
+[data-theme='tafel'] .like-button,
+[data-theme='tafel'] .player-bar .control {
+  border-radius: 0;
+}
+[data-theme='tafel'] .stage-tabs button,
+[data-theme='tafel'] .np-station,
+[data-theme='tafel'] .sidebar-label,
+[data-theme='tafel'] .like-button,
+[data-theme='tafel'] .station-board {
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+[data-theme='tafel'] .stage-tabs button {
+  font-size: 15px;
+}
+[data-theme='tafel'] .tabs button.active {
+  color: var(--accent);
+}
+[data-theme='tafel'] .now-playing {
+  margin: 0 clamp(16px, 3vw, 28px);
+  padding-top: 18px;
+  padding-bottom: 18px;
+  justify-content: flex-start;
+  background: #0d0d0e;
+  border-top: 4px solid var(--accent);
+}
+[data-theme='tafel'] .main-cover {
+  width: min(220px, 28vh, 22vw);
+}
+[data-theme='tafel'] .stage .cover {
+  border-radius: 0;
+  box-shadow: none;
+}
+[data-theme='tafel'] .np-text {
+  max-width: none;
+}
+[data-theme='tafel'] .like-button {
+  border: 0;
+  background: var(--surface-3);
+  color: var(--text);
+}
+[data-theme='tafel'] .station-board {
+  margin-top: 14px;
+  font-size: 18px;
+}
+[data-theme='tafel'] .board-head {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+}
+[data-theme='tafel'] .board-row {
+  font-weight: 500;
+  border-bottom: 1px solid #222326;
+}
+[data-theme='tafel'] .board-row:hover {
+  background: #1b1c1f;
+}
+[data-theme='tafel'] .board-row.active {
+  color: var(--accent);
+}
+[data-theme='tafel'] .board-nr {
+  color: var(--text-muted);
+}
+[data-theme='tafel'] .board-status {
+  justify-self: start;
+  padding: 0 8px;
+  color: var(--text-muted);
+}
+[data-theme='tafel'] .board-row.active .board-status {
+  background: var(--accent);
+  color: #151618;
+  font-weight: 700;
+}
+[data-theme='tafel'] .player-bar .control {
+  background: var(--surface-3);
+  color: var(--text);
+}
+[data-theme='tafel'] .player-bar .control.play {
+  width: 56px;
+  height: 56px;
+  background: var(--accent);
+  color: #151618;
+  box-shadow: none;
+}
+[data-theme='tafel'] .player-bar .control.play:hover:not(:disabled) {
+  background: var(--accent-strong);
+  color: #151618;
+}
+[data-theme='tafel'] .volume input {
+  border-radius: 0;
+}
+
+/* ---------- Helle Designs: dunkle Glas-Effekte des Standards ersetzen ---------- */
+
+[data-theme='kofferradio'] .stage-backdrop,
+[data-theme='plakat'] .stage-backdrop {
+  display: none;
+}
+[data-theme='kofferradio'] .app > .sidebar {
+  border-color: var(--border);
+  background: rgba(246, 244, 239, 0.94);
+  box-shadow: 0 18px 40px rgba(60, 50, 30, 0.18);
+}
+[data-theme='kofferradio'] .icon-button:hover,
+[data-theme='kofferradio'] .icon-button.active,
+[data-theme='kofferradio'] .player-bar .control:hover:not(:disabled),
+[data-theme='kofferradio'] .sidebar .station-item:hover,
+[data-theme='plakat'] .icon-button:hover,
+[data-theme='plakat'] .icon-button.active,
+[data-theme='plakat'] .sidebar .station-item:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+[data-theme='kofferradio'] .sidebar .station-item.active {
+  background: rgba(0, 0, 0, 0.1);
+}
+[data-theme='kofferradio'] .stage-tabs,
+[data-theme='kofferradio'] .status-chip {
+  background: rgba(0, 0, 0, 0.07);
+}
+[data-theme='kofferradio'] .tabs button.active {
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+}
+[data-theme='kofferradio'] .button:hover,
+[data-theme='plakat'] .button:hover {
+  background: var(--surface-3);
+}
+[data-theme='kofferradio'] .button.primary,
+[data-theme='kofferradio'] .button.primary:hover {
+  background: var(--accent);
+  color: #fff;
+}
+[data-theme='plakat'] .button.primary {
+  background: #111;
+  color: #fff;
+}
+[data-theme='kofferradio'] .modal-backdrop,
+[data-theme='plakat'] .modal-backdrop {
+  background: rgba(40, 35, 25, 0.35);
+}
+[data-theme='kofferradio'] .like-button:hover,
+[data-theme='plakat'] .like-button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+[data-theme='kofferradio'] .yt-add input,
+[data-theme='kofferradio'] .yt-rename input,
+[data-theme='plakat'] .yt-add input,
+[data-theme='plakat'] .yt-rename input {
+  background: var(--surface);
+}
+[data-theme='plakat'] .yt-add input,
+[data-theme='plakat'] .yt-rename input {
+  border: 2px solid #111;
+}
+[data-theme='kofferradio'] .yt-queue {
+  border-top-color: var(--border);
+}
+[data-theme='kofferradio'] .yt-queue button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+[data-theme='kofferradio'] .yt-row .station-actions,
+[data-theme='kofferradio'] .yt-row .confirm,
+[data-theme='plakat'] .yt-row .station-actions,
+[data-theme='plakat'] .yt-row .confirm {
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+[data-theme='kofferradio'] .volume input::-webkit-slider-thumb {
+  background: var(--text);
+}
+
+/* Schmale Fenster: Tasten in zwei Reihen, Tafel einspaltig */
+@media (max-width: 900px) {
+  .deck-keys {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .board-rows {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-flow: row;
+  }
+  .board-head {
+    grid-template-columns: 44px minmax(0, 1fr) 90px;
+  }
+  .board-head span:nth-child(n + 4) {
+    display: none;
+  }
+  .station-board .board-row:nth-child(n + 5) {
+    display: none;
+  }
+}
+
+/* Vollbild bleibt in den hellen Designs dunkel (Einbrennschutz, Wanddisplay) */
+[data-theme='kofferradio'] .fullscreen,
+[data-theme='plakat'] .fullscreen {
+  --text: #f4f2ec;
+  --text-muted: #b9b5ab;
+  --text-faint: #8d897f;
+  --surface-3: #2c2b28;
+  color: var(--text);
+  color-scheme: dark;
+}
+[data-theme='plakat'] .fullscreen {
+  --accent: #ffd23f;
+  --accent-strong: #ffe066;
+}
+
+/* Mit Seitenleiste wird es eng: Kacheln nur mit Namen */
+[data-theme='plakat'] .app.sidebar-open .deck-logo {
+  display: none;
+}

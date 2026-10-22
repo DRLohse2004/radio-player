@@ -25,6 +25,7 @@ import { AirPlaySidebar, AirPlayStage } from './components/AirPlayPanel';
 import { StationEditor } from './components/StationEditor';
 import { StationList } from './components/StationList';
 import { StationStore } from './components/StationStore';
+import { deckStations, FlapTrack, Spectrum, StationDeck, TuningScale, VuMeter } from './components/ThemeDeck';
 import { findStationLogo } from './logo';
 import { parseStreamTitle } from './metadata';
 import { isSpotifyPlaying, useSpotify } from './spotify';
@@ -34,6 +35,7 @@ import './features.css';
 import './store.css';
 import './spotify.css';
 import './layout.css';
+import { DECK_THEMES, THEMES, useTheme } from './themes';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 3000;
@@ -64,6 +66,7 @@ const DEFAULT_PREFS: Preferences = {
   autoUpdate: true,
   room: { open: false, name: '', join: null, mode: 'listen', volume: 0.7, clientId: '' },
   tabs: { radio: true, youtube: true, spotify: true, airplay: true, bluetooth: true },
+  theme: 'standard',
 };
 
 type Tab = SourceTab;
@@ -121,6 +124,7 @@ export default function App() {
   const [roomOpen, setRoomOpen] = useState(false);
 
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
+  useTheme(prefs.theme);
   const [history, setHistory] = useState<Track[]>([]);
   const [favorites, setFavorites] = useState<Track[]>([]);
   const [graph, setGraph] = useState<AudioGraph | null>(null);
@@ -165,6 +169,7 @@ export default function App() {
         room: { ...DEFAULT_PREFS.room, ...settings?.prefs?.room },
         tabs: { ...DEFAULT_PREFS.tabs, ...settings?.prefs?.tabs },
       };
+      if (!THEMES.some((t) => t.id === loadedPrefs.theme)) loadedPrefs.theme = 'standard';
       if (!loadedPrefs.room.clientId) loadedPrefs.room.clientId = newClientId();
       // Im Room hört man mit statt selbst zu starten
       const inRoom = !!loadedPrefs.room.join;
@@ -1012,6 +1017,22 @@ export default function App() {
     currentStationId: view === 'radio' ? currentId : null,
     youtube: youtubeItems.map((i) => ({ id: i.id, title: i.title, thumbnail: httpOnly(i.thumbnail), kind: i.kind })),
     listen: hostListen,
+    receivers: {
+      spotify: {
+        enabled: prefs.spotify.enabled && prefs.tabs.spotify,
+        name: prefs.spotify.deviceName.trim() || spotifyDefaultName,
+        running: sp.process.running,
+        client: sp.active ? sp.username ?? 'Spotify' : null,
+        error: sp.process.error,
+      },
+      airplay: {
+        enabled: prefs.airplay.enabled && prefs.tabs.airplay,
+        name: ap.state.name || prefs.airplay.name.trim() || `Radio ${hostname}`,
+        running: ap.state.running,
+        client: ap.state.client,
+        error: ap.state.error,
+      },
+    },
   };
   // Auch ein pausierter YouTube-Titel zählt: Der Wunsch kommt danach, statt ihn zu verdrängen
   const anythingActive = wantPlay || !!ytNow || yt.state.status === 'loading' || spotifyPlaying || apSession || !!btDevice;
@@ -1043,6 +1064,13 @@ export default function App() {
         if (wish) yt.playWish(wish);
       }
     },
+    // Admin im Room: Empfang am Host schalten – beim Einschalten auch den Reiter einblenden
+    setReceiver: (kind, enabled) =>
+      setPrefs((p) => ({
+        ...p,
+        [kind]: { ...p[kind], enabled },
+        tabs: enabled ? { ...p.tabs, [kind]: true } : p.tabs,
+      })),
   });
   takeWishRef.current = remote.takeWish;
 
@@ -1109,6 +1137,9 @@ export default function App() {
   const closeSidebar = () => setSidebarOpen(false);
   const volumeStyle = { '--fill': `${ui.volume * 100}%` } as CSSProperties;
   const visibleTabs = TABS.filter((t) => prefs.tabs[t.id]);
+  const theme = prefs.theme;
+  const deck = DECK_THEMES.includes(theme) ? deckStations(stations, currentId) : [];
+  const analyser = graph?.analyser ?? null;
   const tabPlaying: Record<Tab, boolean> = {
     radio: wantPlay,
     youtube: ytPlaying,
@@ -1141,6 +1172,7 @@ export default function App() {
           onSidebar={setSidebarOpen}
           onChange={setRoom}
           onOpenDialog={() => setRoomOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
           fullscreen={fullscreen}
           onFullscreen={setFullscreen}
           display={{ weatherCity: prefs.weatherCity, swapMinutes: prefs.swapMinutes, visualizer: prefs.visualizer }}
@@ -1330,14 +1362,21 @@ export default function App() {
             onOpenSidebar={() => setSidebarOpen(true)}
           />
         ) : (
+        <>
+        {(theme === 'kofferradio' || theme === 'roehre') && deck.length > 0 && (
+          <TuningScale theme={theme} stations={deck} currentId={currentId} onSelect={selectStation} />
+        )}
         <section className="now-playing">
+          {theme === 'roehre' && <VuMeter analyser={analyser} active={status === 'playing'} side="left" />}
+          <div className={theme === 'roehre' ? 'vfd' : 'np-main'}>
           <Cover cover={cover} station={current} kind={nowPlaying?.kind} className="main-cover" />
           <div className="np-text">
             <div className="np-station">
               {current?.name}
               {nowPlaying && nowPlaying.kind !== 'program' && status === 'playing' && <KindBadge kind={nowPlaying.kind} />}
             </div>
-            <TrackInfo nowPlaying={nowPlaying} station={current} />
+            {theme === 'tafel' ? <FlapTrack nowPlaying={nowPlaying} station={current} /> : <TrackInfo nowPlaying={nowPlaying} station={current} />}
+            {theme === 'phosphor' && <Spectrum analyser={analyser} active={status === 'playing'} />}
             {currentTrack && (
               <button
                 className={`like-button${isFavorite(currentTrack) ? ' active' : ''}`}
@@ -1349,10 +1388,22 @@ export default function App() {
               </button>
             )}
           </div>
+          </div>
+          {theme === 'roehre' && <VuMeter analyser={analyser} active={status === 'playing'} side="right" />}
+          {theme === 'kofferradio' && <div className="speaker-grille" aria-hidden="true" />}
         </section>
+        {deck.length > 0 && (
+          <StationDeck theme={theme} stations={deck} currentId={currentId} playing={wantPlay} onSelect={selectStation} />
+        )}
+        </>
         )}
 
         <footer className="player-bar">
+          {theme === 'phosphor' && (
+            <div className="key-hints" aria-hidden="true">
+              [←] zurück [Leer] pause [→] weiter [F11] vollbild
+            </div>
+          )}
           <Controls
             isPlaying={ui.isPlaying}
             disabled={!ui.canControl}
