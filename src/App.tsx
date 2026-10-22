@@ -1017,6 +1017,22 @@ export default function App() {
     currentStationId: view === 'radio' ? currentId : null,
     youtube: youtubeItems.map((i) => ({ id: i.id, title: i.title, thumbnail: httpOnly(i.thumbnail), kind: i.kind })),
     listen: hostListen,
+    receivers: {
+      spotify: {
+        enabled: prefs.spotify.enabled && prefs.tabs.spotify,
+        name: prefs.spotify.deviceName.trim() || spotifyDefaultName,
+        running: sp.process.running,
+        client: sp.active ? sp.username ?? 'Spotify' : null,
+        error: sp.process.error,
+      },
+      airplay: {
+        enabled: prefs.airplay.enabled && prefs.tabs.airplay,
+        name: ap.state.name || prefs.airplay.name.trim() || `Radio ${hostname}`,
+        running: ap.state.running,
+        client: ap.state.client,
+        error: ap.state.error,
+      },
+    },
   };
   // Auch ein pausierter YouTube-Titel zählt: Der Wunsch kommt danach, statt ihn zu verdrängen
   const anythingActive = wantPlay || !!ytNow || yt.state.status === 'loading' || spotifyPlaying || apSession || !!btDevice;
@@ -1048,6 +1064,13 @@ export default function App() {
         if (wish) yt.playWish(wish);
       }
     },
+    // Admin im Room: Empfang am Host schalten – beim Einschalten auch den Reiter einblenden
+    setReceiver: (kind, enabled) =>
+      setPrefs((p) => ({
+        ...p,
+        [kind]: { ...p[kind], enabled },
+        tabs: enabled ? { ...p.tabs, [kind]: true } : p.tabs,
+      })),
   });
   takeWishRef.current = remote.takeWish;
 
@@ -1149,6 +1172,7 @@ export default function App() {
           onSidebar={setSidebarOpen}
           onChange={setRoom}
           onOpenDialog={() => setRoomOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
           fullscreen={fullscreen}
           onFullscreen={setFullscreen}
           display={{ weatherCity: prefs.weatherCity, swapMinutes: prefs.swapMinutes, visualizer: prefs.visualizer }}

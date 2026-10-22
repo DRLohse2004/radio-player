@@ -144,7 +144,7 @@ function allowed(action, who) {
     case 'wishRemove':
       return true; // eigene Wünsche – prüft die Oberfläche
     default:
-      return false; // wishMove, wishClear, …
+      return false; // wishMove, wishClear, receiver (Spotify/AirPlay schalten), …
   }
 }
 

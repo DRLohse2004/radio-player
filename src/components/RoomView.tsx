@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 
 import { isDesktop } from '../api';
 import type { AudioGraph } from '../audio';
 import { useListen, type SearchResult, type useRoom } from '../room';
-import type { PlayerStatus, RoomPrefs, Station, Track } from '../types';
+import type { HostReceiver, PlayerStatus, RoomPrefs, Station, Track } from '../types';
 import { FullscreenView } from './FullscreenView';
-import { CloseIcon, ExpandIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SidebarIcon, VolumeIcon } from './Icons';
+import { CloseIcon, ExpandIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
 import { Controls, Cover } from './Player';
 import { StationLogo } from './StationLogo';
 
@@ -17,6 +17,8 @@ interface Props {
   onSidebar(open: boolean): void;
   onChange(patch: Partial<RoomPrefs>): void;
   onOpenDialog(): void;
+  /** Einstellungen dieses Radios öffnen */
+  onOpenSettings(): void;
   fullscreen: boolean;
   onFullscreen(open: boolean): void;
   /** Vollbild-Einstellungen dieses Radios */
@@ -26,7 +28,7 @@ interface Props {
 const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** Ansicht eines Radios, das einem Room beigetreten ist: zeigt und steuert den Host */
-export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpenDialog, fullscreen, onFullscreen, display }: Props) {
+export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpenDialog, onOpenSettings, fullscreen, onFullscreen, display }: Props) {
   const host = room.host;
   const audioRef = useRef<HTMLAudioElement>(null);
   const listening = prefs.mode === 'listen';
@@ -59,12 +61,18 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
     if (host?.playing) graph?.context.resume().catch(() => {});
   }, [graph, host?.playing]);
   const [message, setMessage] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'stations' | 'youtube' | 'wishes'>('stations');
+  const [panel, setPanel] = useState<'stations' | 'youtube' | 'wishes' | 'receivers'>('stations');
   useEffect(() => {
     if (!message) return;
     const timer = window.setTimeout(() => setMessage(null), 6000);
     return () => window.clearTimeout(timer);
   }, [message]);
+
+  // Empfang am Host nur für Admins – nach dem Abmelden zurück zu den Sendern
+  const receivers = room.admin ? host?.receivers : undefined;
+  useEffect(() => {
+    if (panel === 'receivers' && !receivers) setPanel('stations');
+  }, [panel, receivers]);
 
   const rules = host?.rules;
   const may = (rule: boolean | undefined) => room.admin || rule !== false;
@@ -180,6 +188,11 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
             <button className={panel === 'wishes' ? 'active' : ''} onClick={() => setPanel('wishes')}>
               Wünsche{host?.wishes?.length ? ` (${host.wishes.length})` : ''}
             </button>
+            {receivers && (
+              <button className={panel === 'receivers' ? 'active' : ''} onClick={() => setPanel('receivers')}>
+                Empfang
+              </button>
+            )}
           </div>
           <div className="sidebar-scroll">
             {panel === 'stations' && (
@@ -216,6 +229,21 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
               </ul>
             )}
             {panel === 'wishes' && <WishPanel room={room} clientId={prefs.clientId} onMessage={setMessage} />}
+            {panel === 'receivers' && receivers && (
+              <div className="room-receivers">
+                <p className="side-note">Empfang am Host – nur für Admins.</p>
+                <ReceiverToggle
+                  label="Spotify Connect"
+                  receiver={receivers.spotify}
+                  onChange={(enabled) => run('receiver', { kind: 'spotify', enabled })}
+                />
+                <ReceiverToggle
+                  label="AirPlay"
+                  receiver={receivers.airplay}
+                  onChange={(enabled) => run('receiver', { kind: 'airplay', enabled })}
+                />
+              </div>
+            )}
           </div>
         </aside>
       )}
@@ -247,6 +275,9 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
           <div className="stage-actions">
             <button className="icon-button active" onClick={onOpenDialog} title="Room">
               <RoomIcon size={20} />
+            </button>
+            <button className="icon-button" onClick={onOpenSettings} title="Einstellungen">
+              <SettingsIcon size={20} />
             </button>
             <button className="icon-button" onClick={() => onFullscreen(true)} title="Vollbild (F11)">
               <ExpandIcon size={20} />
@@ -315,6 +346,28 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
         </footer>
       </main>
     </>
+  );
+}
+
+/** Schalter für Spotify Connect bzw. AirPlay am Host, mit Zustand darunter */
+function ReceiverToggle({ label, receiver, onChange }: { label: string; receiver: HostReceiver; onChange(enabled: boolean): void }) {
+  const state = !receiver.enabled
+    ? 'Aus'
+    : receiver.error
+      ? receiver.error
+      : receiver.client
+        ? `Verbunden mit ${receiver.client}`
+        : receiver.running
+          ? `Bereit als „${receiver.name}“`
+          : 'Startet …';
+  return (
+    <label className="toggle-row">
+      <span>
+        <span className="toggle-label">{label}</span>
+        <small className={receiver.enabled && receiver.error ? 'error-text' : undefined}>{state}</small>
+      </span>
+      <input type="checkbox" className="switch" checked={receiver.enabled} onChange={(e) => onChange(e.target.checked)} />
+    </label>
   );
 }
 

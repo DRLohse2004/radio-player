@@ -35,6 +35,8 @@ export interface RemoteHandlers {
   startWishes(): void;
   /** Ein Wunsch kam dazu – die App entscheidet, ob er sofort startet */
   wishAdded(): void;
+  /** Spotify Connect bzw. AirPlay-Empfang ein- oder ausschalten (nur Admins, prüft der Server) */
+  setReceiver(kind: 'spotify' | 'airplay', enabled: boolean): void;
 }
 
 /** Zustand fürs Handy (ohne Wünsche und Regeln, die ergänzt der Hook) */
@@ -179,6 +181,12 @@ export function useRemote(
           case 'wishClear':
             clearWishes();
             return done();
+          case 'receiver': {
+            const { kind, enabled } = (command.value ?? {}) as { kind?: string; enabled?: unknown };
+            if (kind !== 'spotify' && kind !== 'airplay') return done({ error: 'Unbekannter Empfang.' });
+            h.setReceiver(kind, !!enabled);
+            return done();
+          }
           default:
             return done({ error: 'Unbekannter Befehl.' });
         }

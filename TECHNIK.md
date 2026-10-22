@@ -145,6 +145,9 @@ anspricht. So kommt sie auch durch Netze, in denen nur Port 80 offen ist.
   `{ kind: 'youtube', url, live, position, at }` (Sekunden bzw. Zeitstempel). Der Gast spielt den Sender über den eigenen
   Stream-Proxy (Session 0) bzw. löst das Video selbst mit yt-dlp auf und springt an `position + (jetzt − at)`; weicht
   er um mehr als 4 s ab, zieht er nach. Spotify, AirPlay und Bluetooth: `{ kind: 'none', reason }`.
+- **Empfang am Host:** Der Zustand enthält `receivers` (Spotify Connect und AirPlay: an/aus, Name, läuft, verbundenes
+  Gerät, Fehler). Der Befehl `receiver` (`{ kind: 'spotify' | 'airplay', enabled }`) schaltet den Empfang am Host und
+  blendet beim Einschalten den Reiter ein. `allowed()` lässt ihn nur für Admins durch.
 - Ein pausierter YouTube-Titel zählt als aktive Quelle – „Play“ vom Handy oder Gast setzt ihn fort, statt das Radio zu
   starten.
 
