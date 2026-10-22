@@ -3,9 +3,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { AccessMode, RemoteClient, RemoteCommand, RemoteInfo, RemotePrefs, Wish, WishVideo, YouTubeItem } from './types';
+import type { AccessMode, RemoteClient, RemoteCommand, RemoteInfo, RemotePrefs, Wish, WishVideo, YouTubeEntry, YouTubeItem } from './types';
 import { moveTo } from './list';
-import { watchUrl } from './youtube';
+import { consumeTop, extractSong, moveSong, setSongs } from './queue';
 
 export function newRemoteKey() {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -15,19 +15,7 @@ export function newRemoteKey() {
 /** Zugang aus den beiden Schaltern: an/aus und sicher */
 export const accessOf = (on: boolean, secure: boolean): AccessMode => (on ? (secure ? 'secure' : 'public') : 'off');
 
-export function wishToItem(wish: Wish): YouTubeItem {
-  const playlist = wish.count !== undefined;
-  return {
-    id: `wish-${wish.id}`,
-    url: wish.url ?? (playlist ? `https://www.youtube.com/playlist?list=${wish.videoId}` : watchUrl(wish.videoId)),
-    title: wish.title,
-    channel: wish.channel,
-    thumbnail: wish.thumbnail,
-    kind: playlist ? 'playlist' : 'video',
-    count: wish.count,
-    wishedBy: wish.by,
-  };
-}
+const newWishId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 export interface RemoteHandlers {
   toggle(): void;
@@ -35,14 +23,14 @@ export interface RemoteHandlers {
   prev(): void;
   setVolume(volume: number): void;
   selectStation(id: string): boolean;
-  /** gespeicherten YouTube-Eintrag spielen */
-  playYoutube(id: string): boolean;
-  /** gespeicherten YouTube-Eintrag suchen (für „+ Queue“) */
+  /** gespeicherten YouTube-Eintrag suchen (Abspielen = ganz oben in die Queue, „+“ = hinten an) */
   findYoutube(id: string): YouTubeItem | undefined;
-  /** Wunschliste starten (läuft gerade etwas anderes, wird es unterbrochen) */
-  startWishes(): void;
-  /** Ein Wunsch kam dazu – die App entscheidet, ob er sofort startet */
+  /** Queue abspielen (läuft gerade etwas anderes, wird es unterbrochen) */
+  startQueue(): void;
+  /** Etwas kam in die Queue – die App entscheidet, ob es startet */
   wishAdded(): void;
+  /** Sender bzw. gespeicherte YouTube-Einträge bearbeiten – liefert eine Fehlermeldung oder null */
+  edit(action: string, value: unknown): string | null | Promise<string | null>;
   /** Spotify Connect bzw. AirPlay-Empfang ein- oder ausschalten (nur Admins, prüft der Server) */
   setReceiver(kind: 'spotify' | 'airplay', enabled: boolean): void;
 }
@@ -98,69 +86,92 @@ export function useRemote(
 
   useEffect(() => api.onRemoteClients(setClients), []);
 
-  /** Ersten Wunsch aus der Liste nehmen */
-  const takeWish = useCallback((): YouTubeItem | null => {
-    const [first, ...rest] = wishesRef.current;
-    if (!first) return null;
-    wishesRef.current = rest;
-    setWishes(rest);
-    return wishToItem(first);
-  }, []);
-
-  const removeWish = useCallback((id: string) => setWishes((list) => list.filter((w) => w.id !== id)), []);
-  const moveWish = useCallback((id: string, toIndex: number) => setWishes((list) => moveTo(list, id, toIndex)), []);
-  const clearWishes = useCallback(() => setWishes([]), []);
-
-  /** Auf die Queue setzen – liefert eine Fehlermeldung, wenn die Regeln es nicht erlauben */
-  const addWish = useCallback((video: WishVideo, client: RemoteCommand['client']): string | null => {
-    const p = prefsRef.current;
-    const list = wishesRef.current;
-    if (list.some((w) => w.videoId === video.id)) return 'Steht schon auf der Wunschliste.';
-    if (!client.admin) {
-      // shortcut: Playlists und gespeicherte Einträge des Hosts (Länge unbekannt) sind von der Längenbegrenzung ausgenommen und zählen als ein Wunsch – bei Missbrauch Admin-Pflicht einführen
-      if (p.maxMinutes > 0 && video.count === undefined && video.duration > p.maxMinutes * 60)
-        return `Zu lang – Wünsche dürfen höchstens ${p.maxMinutes} Minuten lang sein.`;
-      const own = list.filter((w) => w.clientId === client.clientId).length;
-      if (own >= p.maxWishes) return `Du hast schon ${own} offene Wünsche – warte, bis einer gespielt wurde.`;
-    }
-    const wish: Wish = {
-      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-      videoId: video.id,
-      title: video.title,
-      channel: video.channel,
-      duration: video.duration,
-      thumbnail: video.thumbnail,
-      by: client.name,
-      clientId: client.clientId,
-      count: video.count,
-      url: video.url,
-    };
-    const next = [...list, wish];
+  /** Queue ändern – der Ref ist sofort aktuell, damit mehrere Befehle hintereinander richtig rechnen */
+  const update = useCallback((change: (queue: Wish[]) => Wish[]) => {
+    const next = change(wishesRef.current);
+    if (next === wishesRef.current) return;
     wishesRef.current = next;
     setWishes(next);
-    handlersRef.current.wishAdded();
-    return null;
   }, []);
 
-  /** Gespeicherten Eintrag des Hosts hinten an die Queue hängen (Livestreams nicht – die enden nie) */
+  const removeWish = useCallback((id: string) => update((q) => q.filter((w) => w.id !== id)), [update]);
+  const moveWish = useCallback((id: string, toIndex: number) => update((q) => moveTo(q, id, toIndex)), [update]);
+  const clearWishes = useCallback(() => update(() => []), [update]);
+  const consume = useCallback(() => update(consumeTop), [update]);
+  const setEntries = useCallback((id: string, songs: YouTubeEntry[]) => update((q) => setSongs(q, id, songs)), [update]);
+  /** Song verschieben: in seiner Playlist oder (out) als eigenen Eintrag in die Queue */
+  const moveSongTo = useCallback(
+    (wishId: string, songId: string, toIndex: number, out: boolean) =>
+      update((q) => (out ? extractSong(q, wishId, songId, toIndex, newWishId()) : moveSong(q, wishId, songId, toIndex))),
+    [update],
+  );
+
+  /** In die Queue setzen (top = ganz oben, spielt sofort) – liefert eine Fehlermeldung, wenn die Regeln es nicht erlauben */
+  const addWish = useCallback(
+    (video: WishVideo, client: RemoteCommand['client'], top = false): string | null => {
+      const p = prefsRef.current;
+      const list = wishesRef.current;
+      if (!top && list.some((w) => w.videoId === video.id)) return 'Steht schon in der Queue.';
+      if (!client.admin) {
+        if (video.live) return 'Livestreams können nicht gewünscht werden.';
+        // shortcut: Playlists und gespeicherte Einträge des Hosts (Länge unbekannt) sind von der Längenbegrenzung ausgenommen und zählen als ein Wunsch – bei Missbrauch Admin-Pflicht einführen
+        if (p.maxMinutes > 0 && video.count === undefined && video.duration > p.maxMinutes * 60)
+          return `Zu lang – Wünsche dürfen höchstens ${p.maxMinutes} Minuten lang sein.`;
+        const own = list.filter((w) => w.clientId === client.clientId).length;
+        if (own >= p.maxWishes) return `Du hast schon ${own} offene Wünsche – warte, bis einer gespielt wurde.`;
+      }
+      const wish: Wish = {
+        id: newWishId(),
+        videoId: video.id,
+        title: video.title,
+        channel: video.channel,
+        duration: video.duration,
+        thumbnail: video.thumbnail,
+        by: client.name,
+        clientId: client.clientId,
+        count: video.count,
+        url: video.url,
+        live: video.live || undefined,
+      };
+      update((q) => {
+        const next = top ? [wish, ...q] : [...q, wish];
+        return video.entries ? setSongs(next, wish.id, video.entries) : next;
+      });
+      handlersRef.current.wishAdded();
+      return null;
+    },
+    [update],
+  );
+
+  /** Gespeicherten Eintrag des Hosts in die Queue (top = ganz oben, spielt sofort) */
   const queueItem = useCallback(
-    (item: YouTubeItem, client: RemoteCommand['client']) =>
-      item.kind === 'live'
-        ? 'Livestreams können nicht in die Queue.'
-        : addWish(
-            { id: item.url, url: item.url, title: item.title, channel: item.channel, thumbnail: item.thumbnail, duration: 0, count: item.kind === 'playlist' ? item.count ?? 0 : undefined },
-            client,
-          ),
+    (item: YouTubeItem, client: RemoteCommand['client'], top = false) =>
+      addWish(
+        {
+          id: item.url,
+          url: item.url,
+          title: item.title,
+          channel: item.channel,
+          thumbnail: item.thumbnail,
+          duration: 0,
+          count: item.kind === 'playlist' ? item.count ?? 0 : undefined,
+          live: item.kind === 'live',
+        },
+        client,
+        top,
+      ),
     [addWish],
   );
 
-  // Befehle vom Handy
+  // Befehle vom Handy und aus dem Room
   useEffect(
     () =>
       api.onRemoteCommand((command: RemoteCommand) => {
         const h = handlersRef.current;
         const { client } = command;
         const done = (result: { ok?: boolean; error?: string } = { ok: true }) => api.remoteReply(command.id, result);
+        const answer = (error: string | null) => done(error ? { error } : { ok: true });
+        const value = (command.value ?? {}) as Record<string, unknown>;
         switch (command.action) {
           case 'toggle':
             h.toggle();
@@ -179,49 +190,53 @@ export function useRemote(
           }
           case 'station':
             return done(h.selectStation(String(command.value)) ? { ok: true } : { error: 'Sender nicht gefunden.' });
-          case 'youtubeItem':
-            return done(h.playYoutube(String(command.value)) ? { ok: true } : { error: 'Eintrag nicht gefunden.' });
-          case 'wishStart':
-            if (!wishesRef.current.length) return done({ error: 'Die Wunschliste ist leer.' });
-            h.startWishes();
-            return done();
-          case 'wish': {
-            if (!command.video) return done({ error: 'Kein Video.' });
-            const error = addWish(command.video, client);
-            return done(error ? { error } : { ok: true });
+          case 'youtubeItem': {
+            const item = h.findYoutube(String(command.value));
+            if (!item) return done({ error: 'Eintrag nicht gefunden.' });
+            const error = queueItem(item, client, true);
+            if (!error) h.startQueue();
+            return answer(error);
           }
           case 'youtubeQueue': {
             const item = h.findYoutube(String(command.value));
             if (!item) return done({ error: 'Eintrag nicht gefunden.' });
-            const error = queueItem(item, client);
-            return done(error ? { error } : { ok: true });
+            return answer(queueItem(item, client));
           }
+          case 'wishStart':
+            if (!wishesRef.current.length) return done({ error: 'Die Queue ist leer.' });
+            h.startQueue();
+            return done();
+          case 'wish':
+            if (!command.video) return done({ error: 'Kein Video.' });
+            return answer(addWish(command.video, client));
           case 'wishRemove': {
             const wish = wishesRef.current.find((w) => w.id === String(command.value));
-            if (!wish) return done({ error: 'Wunsch nicht gefunden.' });
+            if (!wish) return done({ error: 'Nicht mehr in der Queue.' });
             if (!client.admin && wish.clientId !== client.clientId) return done({ error: 'Nur eigene Wünsche löschen.' });
             removeWish(wish.id);
             return done();
           }
-          case 'wishMove': {
-            const { id, to } = (command.value ?? {}) as { id?: string; to?: number };
-            moveWish(String(id), Number(to));
+          case 'wishMove':
+            moveWish(String(value.id), Number(value.to));
             return done();
-          }
+          case 'songMove':
+            moveSongTo(String(value.wish), String(value.song), Number(value.to), !!value.out);
+            return done();
           case 'wishClear':
             clearWishes();
             return done();
           case 'receiver': {
-            const { kind, enabled } = (command.value ?? {}) as { kind?: string; enabled?: unknown };
+            const { kind, enabled } = value;
             if (kind !== 'spotify' && kind !== 'airplay') return done({ error: 'Unbekannter Empfang.' });
             h.setReceiver(kind, !!enabled);
             return done();
           }
           default:
-            return done({ error: 'Unbekannter Befehl.' });
+            // Sender und gespeicherte YouTube-Einträge bearbeiten (nur Admins, prüft der Server)
+            return void Promise.resolve(h.edit(command.action, command.value)).then(answer);
         }
       }),
-    [removeWish, moveWish, clearWishes, addWish, queueItem],
+    [removeWish, moveWish, moveSongTo, clearWishes, addWish, queueItem],
   );
 
   // Zustand an die Handys – nur wenn sich etwas geändert hat
@@ -240,5 +255,5 @@ export function useRemote(
 
   const refreshInfo = useCallback(() => api.remoteInfo().then(setInfo), []);
 
-  return { info, clients, wishes, takeWish, removeWish, moveWish, clearWishes, queueItem, refreshInfo };
+  return { info, clients, wishes, removeWish, moveWish, moveSongTo, clearWishes, consume, setEntries, addWish, queueItem, refreshInfo };
 }

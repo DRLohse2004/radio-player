@@ -73,10 +73,14 @@ In den **Einstellungen** (Zahnrad) legen Sie den Ort für das Wetter fest und wi
 ### YouTube
 
 1. Oben auf **„YouTube“** wechseln.
-2. Einen Link in das Feld links oben einfügen – aus der Adresszeile des Browsers oder in der YouTube-App über **„Teilen → Link kopieren“** – und **„+“** klicken. Das Radio holt Titel und Vorschaubild selbst.
-3. Den Eintrag anklicken – er spielt sofort.
+2. Links oben suchen – nach Songs, Interpreten oder Playlists – oder einen Link einfügen (aus der Adresszeile des Browsers oder in der YouTube-App über **„Teilen → Link kopieren“**).
+3. Beim Treffer **„+“** (bzw. **„Alle“** bei einer Playlist) setzt ihn in die **Queue**, **✓** legt ihn unter **„Gespeichert“** ab.
 
-Es funktionieren einzelne **Videos**, **Playlists** (mit Titelliste, Vor/Zurück und automatischem Weiterspielen) und **Livestreams**. Gespielt wird nur der Ton, ohne Anmeldung und ohne Werbung. Einträge lassen sich wie Sender umbenennen, löschen und per Ziehen sortieren.
+**Die Queue:** Was ganz oben steht, läuft gerade („Läuft gerade“). Ist ein Song zu Ende oder drückt man „Weiter“, rückt der nächste nach. Die Reihenfolge ändern Sie per Ziehen – wer den laufenden Eintrag nach unten zieht, startet damit den, der dann oben steht. Playlists stehen als ein Eintrag in der Queue und klappen per Klick ihre Songs auf; einzelne Songs lassen sich innerhalb der Playlist verschieben oder aus ihr heraus an eine beliebige Stelle der Queue ziehen. Wünsche vom Handy und aus dem Room landen in derselben Queue (hinten).
+
+**Gespeichert:** Ein Klick auf einen gespeicherten Eintrag setzt ihn ganz oben in die Queue – er spielt sofort, der bisher laufende kommt danach. **„+“** hängt ihn hinten an. Einträge lassen sich wie Sender umbenennen, löschen und per Ziehen sortieren.
+
+Es funktionieren einzelne **Videos**, **Playlists** und **Livestreams**. Gespielt wird nur der Ton, ohne Anmeldung und ohne Werbung.
 
 ![YouTube](docs/screenshots/youtube.png)
 
@@ -131,9 +135,9 @@ Am Handy gibt es:
 
 - **Steuerung:** Pause/Weiter, vor und zurück, Lautstärke – und anzeigen, was gerade läuft.
 - **Sender:** antippen, und er spielt.
-- **Queue:** Song, Interpret, Playlist oder einen YouTube-Link suchen und mit **„+“** in die Queue setzen. Eine Playlist klappt beim Antippen ihre Songs zum einzelnen Wünschen auf; **„Alle“** setzt die ganze Playlist als einen Wunsch auf die Liste – sie läuft dann komplett, bevor der nächste Wunsch kommt. Der Admin kann sie mit **„Playlist beenden“** abbrechen und zum nächsten Wunsch springen. Wünsche spielen nach dem aktuellen YouTube-Titel; läuft gar nichts, startet der Wunsch sofort; läuft das Radio, startet „Jetzt spielen“ die Wunschliste.
+- **Queue:** Song, Interpret, Playlist oder einen YouTube-Link suchen und mit **„+“** in die Queue setzen. Eine Playlist klappt beim Antippen ihre Songs zum einzelnen Wünschen auf; **„Alle“** setzt die ganze Playlist als einen Eintrag in die Queue. Oben steht, was gerade läuft; Wünsche stellen sich hinten an. Läuft gar nichts, startet ein Wunsch sofort; läuft das Radio, startet „Jetzt spielen“ die Queue.
 
-Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren. Am PC steht die Queue im Reiter YouTube: Dort lässt sie sich mit der Maus umsortieren, Playlists darin klappen per Klick ihre Songs auf, und jeder gespeicherte Eintrag hat neben „Abspielen“ (Klick auf den Eintrag) ein **„+“**, das ihn hinten an die Queue hängt. Wünsche vom Handy, aus dem Room und vom PC landen alle in dieser einen Queue. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
+Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren – auch die Songs einer aufgeklappten Playlist; **„↥“** holt einen Song ganz nach oben, er spielt dann sofort. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
 
 > Handy und PC müssen im selben Netzwerk sein. Die Fernbedienung nutzt Port 80 – der ist auch in abgeschotteten WLANs meist offen. „Neuen QR-Code erzeugen“ sperrt alle bisherigen Handys aus.
 
@@ -148,7 +152,7 @@ An jedem anderen Radio ebenfalls das Room-Symbol öffnen: Das Radio sucht im Net
 
 ![Room – Mithören](docs/screenshots/room.png)
 
-Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild (F11) gibt es auch im Room. Im Room sieht man die Sender und YouTube-Links des Hosts und kann sich Songs und Playlists wünschen; mit der Admin-PIN lässt sich die Wunschliste per Ziehen sortieren. Was Gäste dürfen, gilt wie bei der Handy-Fernbedienung. Wer sich unter „Wünsche“ mit der Admin-PIN des Hosts anmeldet, bekommt links zusätzlich den Bereich **„Empfang“** und kann dort Spotify Connect und AirPlay am Host ein- und ausschalten. Die eigenen Einstellungen (oben rechts) bleiben auch im Room erreichbar. „Room verlassen“ bringt die eigenen Sender und Einstellungen unverändert zurück.
+Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild (F11) gibt es auch im Room. Die Seitenleiste im Room sieht aus wie am Host: Sender, YouTube mit Suche, Queue und gespeicherten Einträgen. Was Gäste nicht dürfen, ist ausgegraut oder ausgeblendet; was sie dürfen, gilt wie bei der Handy-Fernbedienung. Wer sich oben in der Seitenleiste mit der **Admin-PIN** des Hosts anmeldet, kann alles wie am Host: Sender hinzufügen, bearbeiten, löschen und sortieren, den Sender-Store nutzen, YouTube-Einträge speichern und verwalten, Queue und Songs sortieren. Admins bekommen außerdem den Bereich **„Empfang“** und kann dort Spotify Connect und AirPlay am Host ein- und ausschalten. Die eigenen Einstellungen (oben rechts) bleiben auch im Room erreichbar. „Room verlassen“ bringt die eigenen Sender und Einstellungen unverändert zurück.
 
 > Findet die Suche den Host nicht (z. B. weil er in einem anderen Netz hängt), unter **„Auch in diesen Netzen suchen“** das Netz des Hosts eintragen, z. B. `10.0.11.255` oder `10.0.255.255` für alle 10.0.x.x-Netze – oder direkt seine Adresse eintragen, sie steht beim Host im Room-Fenster. Mithören geht für Radiosender und YouTube; Spotify, AirPlay und Bluetooth kommen nur beim Host an und laufen dort weiter.
 

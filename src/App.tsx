@@ -9,9 +9,10 @@ import { KindBadge } from './components/Segment';
 import { SettingsDialog } from './components/SettingsDialog';
 import { SpotifySidebar, SpotifyStage } from './components/SpotifyPanel';
 import { BluetoothSidebar, BluetoothStage } from './components/BluetoothPanel';
-import { YouTubeSidebar } from './components/YouTubeSidebar';
+import { YouTubeSidebar, YtDlpFooter } from './components/YouTubeSidebar';
 import { YouTubeStage } from './components/YouTubeStage';
-import { useYouTube, watchUrl } from './youtube';
+import { useYouTube } from './youtube';
+import { isPlaylist, nextTrack, topTrack } from './queue';
 import { newRemoteKey, useRemote } from './remote';
 import { newClientId, useRoom } from './room';
 import { RoomDialog } from './components/RoomDialog';
@@ -396,20 +397,19 @@ export default function App() {
   const prevStation = useCallback(() => step(-1), [step]);
   const nextStation = useCallback(() => step(1), [step]);
 
-  const saveStation = (values: Omit<Station, 'id'>) => {
-    if (editing === 'new') {
+  const saveStation = (values: Omit<Station, 'id'>, target: Station | null) => {
+    if (!target) {
       const station = { id: newStationId(), ...values };
       setStations((list) => [...list, station]);
       if (!currentId) setCurrentId(station.id);
-    } else if (editing) {
+    } else {
       // Logo bewusst geleert -> nicht automatisch neu befüllen;
       // neuer Name/neue Adresse ohne Logo -> erneut suchen
-      const clearedLogo = Boolean(editing.logo) && !values.logo;
-      const sourceChanged = values.url !== editing.url || values.name !== editing.name;
-      const logoChecked = values.logo || clearedLogo ? true : sourceChanged ? false : editing.logoChecked;
-      setStations((list) => list.map((s) => (s.id === editing.id ? { ...s, ...values, logoChecked } : s)));
+      const clearedLogo = Boolean(target.logo) && !values.logo;
+      const sourceChanged = values.url !== target.url || values.name !== target.name;
+      const logoChecked = values.logo || clearedLogo ? true : sourceChanged ? false : target.logoChecked;
+      setStations((list) => list.map((s) => (s.id === target.id ? { ...s, ...values, logoChecked } : s)));
     }
-    setEditing(null);
   };
 
   const deleteStation = (id: string) => {
@@ -738,8 +738,9 @@ export default function App() {
 
   // --- YouTube ---------------------------------------------------------------------------
 
-  const takeWishRef = useRef<() => YouTubeItem | null>(() => null);
-  const yt = useYouTube(ytAudioRef, { nextWish: () => takeWishRef.current() });
+  // Song zu Ende oder „Weiter“: die Queue rückt nach (der Ref wird unten gesetzt, sobald die Queue da ist)
+  const ytEndedRef = useRef(() => {});
+  const yt = useYouTube(ytAudioRef, { onEnded: () => ytEndedRef.current() });
   const youtubeRef = useRef(yt);
   youtubeRef.current = yt;
   const ytNow = yt.state.now;
@@ -773,19 +774,18 @@ export default function App() {
   };
   const moveYoutube = (id: string, toIndex: number) => setYoutubeItems((list) => moveTo(list, id, toIndex));
   const deleteYoutube = (id: string) => {
-    if (ytNow?.item.id === id) yt.stop();
     setYoutubeItems((list) => list.filter((i) => i.id !== id));
   };
 
   // YouTube-Titel in den Verlauf
-  const ytTrackKey = ytNow && yt.state.status === 'playing' ? `${ytNow.item.id}|${ytNow.index}|${ytNow.title}` : null;
+  const ytTrackKey = ytNow && yt.state.status === 'playing' ? `${ytNow.item.id}|${ytNow.title}` : null;
   useEffect(() => {
     if (!ytTrackKey || !ytNow) return;
     const track: Track = {
       id: `y-${Date.now().toString(36)}`,
       artist: ytNow.channel ?? '',
       title: ytNow.title,
-      album: ytNow.entries.length > 1 ? ytNow.item.title : null,
+      album: ytNow.item.from ?? null,
       cover: ytNow.fallbackCover ?? ytNow.cover,
       station: 'YouTube',
       time: new Date().toISOString(),
@@ -800,11 +800,11 @@ export default function App() {
         kind: 'music',
         artist: ytNow.channel,
         title: ytNow.title,
-        album: ytNow.entries.length > 1 ? ytNow.item.title : null,
+        album: ytNow.item.from ?? null,
         cover: ytNow.cover,
       }
     : null;
-  const ytStation: Station = { id: 'youtube', name: ytNow && ytNow.entries.length > 1 ? `YouTube · ${ytNow.item.title}` : 'YouTube', url: '' };
+  const ytStation: Station = { id: 'youtube', name: ytNow?.item.from ? `YouTube · ${ytNow.item.from}` : 'YouTube', url: '' };
   const ytStatusText =
     yt.state.status === 'loading'
       ? 'Lade von YouTube …'
@@ -845,7 +845,8 @@ export default function App() {
     ? {
         isPlaying: ytPlaying,
         canControl: !!ytNow,
-        toggle: yt.toggle,
+        // Play nimmt immer, was oben in der Queue steht
+        toggle: () => (ytPlaying ? yt.pause() : startQueueRef.current()),
         prev: yt.prev,
         next: yt.next,
         volume: muted ? 0 : volume,
@@ -960,14 +961,13 @@ export default function App() {
 
   const httpOnly = (url: string | null | undefined) => (url && /^https?:\/\//.test(url) ? url : null);
   // Für Radios im Room: was sie selbst abspielen müssen, um mitzuhören
-  const ytEntry = ytNow?.entries[ytNow.index];
   const hostListen: HostListen =
     view === 'radio' && wantPlay && current
       ? { kind: 'radio', url: current.url }
       : onYtTab && ytNow
         ? {
             kind: 'youtube',
-            url: ytEntry ? watchUrl(ytEntry.id) : ytNow.item.url,
+            url: ytNow.item.url,
             live: ytNow.live,
             position: ytNow.live ? 0 : Math.round(yt.position() / 100) / 10,
             at: ytNow.live ? 0 : Date.now(),
@@ -984,8 +984,6 @@ export default function App() {
     album: viewNowPlaying?.album ?? null,
     cover: httpOnly(onYtTab ? ytNow?.fallbackCover ?? ytNow?.cover : viewNowPlaying?.cover),
     wishedBy: onYtTab ? ytNow?.item.wishedBy ?? null : null,
-    // Läuft eine gewünschte Playlist, darf der Admin mit „Jetzt spielen“ zum nächsten Wunsch springen
-    wishPlaylist: onYtTab && !!ytNow?.item.wishedBy && ytNow.item.kind === 'playlist',
     live: onYtTab ? !!ytNow?.live : view === 'radio',
     volume: Math.round(ui.volume * 100) / 100,
     volumeEnabled: !(onBtTab || onApTab || (onSpotifyTab && !sp.active)),
@@ -993,9 +991,10 @@ export default function App() {
       onYtTab && ytNow && !ytNow.live && ytNow.duration
         ? { position: Math.round(yt.position()), duration: ytNow.duration, at: Date.now() }
         : null,
-    stations: stations.map((st) => ({ id: st.id, name: st.name, logo: httpOnly(st.logo) })),
+    // Room-Radios zeigen dieselben Listen wie der Host (Admins bearbeiten sie dort auch)
+    stations: stations.map((st) => ({ id: st.id, name: st.name, url: st.url, logo: httpOnly(st.logo) ?? undefined })),
     currentStationId: view === 'radio' ? currentId : null,
-    youtube: youtubeItems.map((i) => ({ id: i.id, title: i.title, thumbnail: httpOnly(i.thumbnail), kind: i.kind })),
+    youtube: youtubeItems.map((i) => ({ ...i, thumbnail: httpOnly(i.thumbnail) })),
     listen: hostListen,
     receivers: {
       spotify: {
@@ -1028,23 +1027,12 @@ export default function App() {
       return true;
     },
     findYoutube: (id) => youtubeItems.find((i) => i.id === id),
-    playYoutube: (id) => {
-      const item = youtubeItems.find((i) => i.id === id);
-      if (!item) return false;
-      yt.play(item);
-      return true;
-    },
-    startWishes: () => {
-      const wish = takeWishRef.current();
-      if (wish) yt.playWish(wish);
-    },
-    // Läuft gar nichts, startet ein Wunsch sofort – sonst wartet er, bis YouTube weiterspielt
+    startQueue: () => startQueueRef.current(),
+    // Läuft gar nichts, startet die Queue sofort – sonst wartet der Wunsch, bis er oben steht
     wishAdded: () => {
-      if (!anythingActive) {
-        const wish = takeWishRef.current();
-        if (wish) yt.playWish(wish);
-      }
+      if (!anythingActive) startQueueRef.current();
     },
+    edit: (action, value) => editFromRemote(action, value),
     // Admin im Room: Empfang am Host schalten – beim Einschalten auch den Reiter einblenden
     setReceiver: (kind, enabled) =>
       setPrefs((p) => ({
@@ -1053,7 +1041,99 @@ export default function App() {
         tabs: enabled ? { ...p.tabs, [kind]: true } : p.tabs,
       })),
   });
-  takeWishRef.current = remote.takeWish;
+
+  // --- YouTube-Queue: was oben steht, spielt ------------------------------------------------
+  const queue = remote.wishes;
+  const track = topTrack(queue);
+  const upcoming = nextTrack(queue);
+  const [queueWanted, setQueueWanted] = useState(false);
+  ytEndedRef.current = remote.consume;
+  const hostClient = { clientId: 'host', name: roomName, admin: true };
+  const queueNow = ytNow && track && ytNow.item.id === track.id ? (ytPlaying ? 'playing' : 'paused') : null;
+
+  const startQueue = () => {
+    if (ytNow && track && ytNow.item.id === track.id && !ytPlaying) yt.resume();
+    else setQueueWanted(true);
+  };
+  const startQueueRef = useRef(startQueue);
+  startQueueRef.current = startQueue;
+
+  // Oben hat sich etwas geändert: das Neue spielen (pausiert erst beim nächsten Play), Queue leer: aufhören
+  useEffect(() => {
+    if (!queueWanted && !ytNow) return;
+    if (!queue.length) {
+      if (ytNow) yt.stop();
+      setQueueWanted(false);
+      return;
+    }
+    if (!track || ytNow?.item.id === track.id) return;
+    if (queueWanted || ytPlaying) {
+      yt.play(track);
+      setQueueWanted(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueWanted, !!ytNow, ytPlaying, track?.id, queue.length]);
+
+  useEffect(() => {
+    if (upcoming && (ytNow || queueWanted)) yt.prefetch(upcoming.url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upcoming?.url]);
+
+  // Playlists in der Queue: Songs laden (zum Spielen, Aufklappen und Verschieben)
+  const missingSongs = queue.find((w) => isPlaylist(w) && !w.entries);
+  useEffect(() => {
+    if (!missingSongs) return;
+    const url = missingSongs.url ?? `https://www.youtube.com/playlist?list=${missingSongs.videoId}`;
+    api
+      .youtubeInfo(url)
+      .then((info) => remote.setEntries(missingSongs.id, info.entries))
+      .catch(() => remote.removeWish(missingSongs.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missingSongs?.id]);
+
+  /** Admin im Room: Sender und gespeicherte YouTube-Einträge des Hosts bearbeiten */
+  const editFromRemote = (action: string, value: unknown): string | null | Promise<string | null> => {
+    const v = (value ?? {}) as Record<string, unknown>;
+    const text = (x: unknown, max: number) => (typeof x === 'string' ? x.trim().slice(0, max) : '');
+    switch (action) {
+      case 'stationSave': {
+        const name = text(v.name, 80);
+        const url = text(v.url, 2000);
+        if (!name || !/^https?:\/\//i.test(url)) return 'Name und Stream-Adresse (http/https) angeben.';
+        const target = stations.find((st) => st.id === v.id) ?? null;
+        // Hochgeladene Logos (data:) bekommt der Room nicht zu sehen – leer heißt dann „behalten“
+        const logo = text(v.logo, 2000) || (target?.logo?.startsWith('data:') ? target.logo : '');
+        if (logo && !/^(https?:|data:image\/)/.test(logo)) return 'Ungültiges Logo.';
+        saveStation({ name, url, logo: logo || undefined }, target);
+        return null;
+      }
+      case 'stationDelete':
+        deleteStation(String(value));
+        return null;
+      case 'stationMove':
+        moveStation(String(v.id), Number(v.to));
+        return null;
+      case 'youtubeAdd':
+        return addYoutube(text(v.url, 500)).then(
+          () => null,
+          (err: Error) => err.message,
+        );
+      case 'youtubeRename': {
+        const title = text(v.title, 200);
+        if (!title) return 'Name fehlt.';
+        setYoutubeItems((list) => list.map((i) => (i.id === v.id ? { ...i, title } : i)));
+        return null;
+      }
+      case 'youtubeDelete':
+        deleteYoutube(String(value));
+        return null;
+      case 'youtubeMove':
+        moveYoutube(String(v.id), Number(v.to));
+        return null;
+      default:
+        return 'Unbekannter Befehl.';
+    }
+  };
 
   // --- Rooms: dieses Radio hört bei einem anderen mit oder steuert es ------------------------
 
@@ -1230,22 +1310,34 @@ export default function App() {
         ) : tab === 'youtube' ? (
           <YouTubeSidebar
             items={youtubeItems}
-            state={yt.state}
-            entriesFor={yt.entriesFor}
-            wishes={remote.wishes}
-            onRemoveWish={remote.removeWish}
-            onMoveWish={remote.moveWish}
-            onQueue={(item) => remote.queueItem(item, { clientId: 'host', name: roomName, admin: true })}
-            onStartWishes={() => {
-              const wish = takeWishRef.current();
-              if (wish) yt.playWish(wish);
+            queue={queue}
+            now={queueNow}
+            rights={{ edit: true, play: true, move: true, remove: () => true }}
+            search={api.youtubeSearch}
+            loadPlaylist={api.youtubePlaylist}
+            onWish={async (r, whole) => {
+              const error = remote.addWish(
+                whole
+                  ? { id: r.id, title: r.title, channel: r.channel, thumbnail: r.thumbnail, duration: 0, count: 0 }
+                  : { id: r.id, title: r.title, channel: r.channel, thumbnail: r.thumbnail, duration: r.duration },
+                hostClient,
+              );
+              if (error) throw new Error(error);
             }}
-            onPlay={(item, index) => yt.play(item, index)}
-            onAdd={addYoutube}
+            onSave={addYoutube}
+            onPlay={(item) => {
+              if (!remote.queueItem(item, hostClient, true)) setQueueWanted(true);
+            }}
+            onQueue={(item) => remote.queueItem(item, hostClient)}
             onRename={(id, title) => setYoutubeItems((list) => list.map((i) => (i.id === id ? { ...i, title } : i)))}
             onDelete={deleteYoutube}
             onMove={moveYoutube}
+            onStartQueue={startQueue}
+            onRemoveWish={remote.removeWish}
+            onMoveWish={remote.moveWish}
+            onMoveSong={remote.moveSongTo}
             onClose={closeSidebar}
+            footer={<YtDlpFooter />}
           />
         ) : tab === 'spotify' ? (
           <SpotifySidebar
@@ -1569,7 +1661,14 @@ export default function App() {
       {settingsOpen && <SettingsDialog prefs={prefs} update={update} onChange={setPrefs} onClose={closeSettings} />}
 
       {editing && (
-        <StationEditor station={editing === 'new' ? null : editing} onSave={saveStation} onCancel={closeEditor} />
+        <StationEditor
+          station={editing === 'new' ? null : editing}
+          onSave={(values) => {
+            saveStation(values, editing === 'new' ? null : editing);
+            setEditing(null);
+          }}
+          onCancel={closeEditor}
+        />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { PlayerStatus, Station } from '../types';
 import { CloseIcon, EditIcon, GripIcon, PlusIcon, RadioIcon, StoreIcon, TrashIcon } from './Icons';
 import { StationLogo } from './StationLogo';
@@ -15,9 +15,14 @@ interface Props {
   onMove(id: string, toIndex: number): void;
   onOpenStore(): void;
   onClose(): void;
+  /** Room ohne Admin: Sender nur ansehen bzw. (canPlay) wählen */
+  canEdit?: boolean;
+  canPlay?: boolean;
+  /** z. B. die Reiter des Rooms unter der Kopfzeile */
+  children?: ReactNode;
 }
 
-export function StationList({ stations, currentId, status, onSelect, onAdd, onEdit, onDelete, onMove, onOpenStore, onClose }: Props) {
+export function StationList({ stations, currentId, status, onSelect, onAdd, onEdit, onDelete, onMove, onOpenStore, onClose, canEdit = true, canPlay = true, children }: Props) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -35,26 +40,33 @@ export function StationList({ stations, currentId, status, onSelect, onAdd, onEd
           <span>Radio</span>
         </div>
         <div className="sidebar-header-actions">
-          <button className="icon-button" onClick={onOpenStore} title="Sender-Store: Sender entdecken">
-            <StoreIcon size={18} />
-          </button>
-          <button className="icon-button accent" onClick={onAdd} title="Sender manuell hinzufügen">
-            <PlusIcon size={18} />
-          </button>
+          {canEdit && (
+            <>
+              <button className="icon-button" onClick={onOpenStore} title="Sender-Store: Sender entdecken">
+                <StoreIcon size={18} />
+              </button>
+              <button className="icon-button accent" onClick={onAdd} title="Sender manuell hinzufügen">
+                <PlusIcon size={18} />
+              </button>
+            </>
+          )}
           <button className="icon-button" onClick={onClose} title="Seitenleiste ausblenden">
             <CloseIcon size={18} />
           </button>
         </div>
       </header>
+      {children}
 
       <div className="sidebar-label">Sender</div>
 
       {stations.length === 0 ? (
         <div className="empty-list">
           <p>Noch keine Sender vorhanden.</p>
-          <button className="button primary" onClick={onAdd}>
-            <PlusIcon size={16} /> Sender hinzufügen
-          </button>
+          {canEdit && (
+            <button className="button primary" onClick={onAdd}>
+              <PlusIcon size={16} /> Sender hinzufügen
+            </button>
+          )}
         </div>
       ) : (
         <ul className="station-list">
@@ -70,7 +82,7 @@ export function StationList({ stations, currentId, status, onSelect, onAdd, onEd
               <li
                 key={station.id}
                 className={classes.join(' ')}
-                draggable={!confirming}
+                draggable={canEdit && !confirming}
                 onDragStart={(e) => {
                   setDragId(station.id);
                   e.dataTransfer.effectAllowed = 'move';
@@ -89,10 +101,12 @@ export function StationList({ stations, currentId, status, onSelect, onAdd, onEd
                 }}
                 onDragEnd={endDrag}
               >
-                <span className="drag-handle" title="Ziehen zum Sortieren">
-                  <GripIcon size={14} />
-                </span>
-                <button className="station-select" onClick={() => onSelect(station.id)} title={station.url}>
+                {canEdit && (
+                  <span className="drag-handle" title="Ziehen zum Sortieren">
+                    <GripIcon size={14} />
+                  </span>
+                )}
+                <button className="station-select" disabled={!canPlay} onClick={() => onSelect(station.id)} title={station.url}>
                   <StationLogo station={station} className="small" />
                   <span className="station-name">{station.name}</span>
                   {active && status === 'playing' && (
@@ -121,6 +135,7 @@ export function StationList({ stations, currentId, status, onSelect, onAdd, onEd
                     </button>
                   </div>
                 ) : (
+                  canEdit && (
                   <div className="station-actions">
                     <button className="icon-button" onClick={() => onEdit(station)} title="Bearbeiten">
                       <EditIcon size={16} />
@@ -129,17 +144,20 @@ export function StationList({ stations, currentId, status, onSelect, onAdd, onEd
                       <TrashIcon size={16} />
                     </button>
                   </div>
+                  )
                 )}
               </li>
             );
           })}
         </ul>
       )}
-      <div className="sidebar-footer">
-        <button className="button store-open" onClick={onOpenStore}>
-          <StoreIcon size={17} /> Sender entdecken
-        </button>
-      </div>
+      {canEdit && (
+        <div className="sidebar-footer">
+          <button className="button store-open" onClick={onOpenStore}>
+            <StoreIcon size={17} /> Sender entdecken
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

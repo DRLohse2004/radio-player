@@ -591,6 +591,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('airplay:stop', () => airplay.stop());
     ipcMain.handle('airplay:state', () => airplay.getState());
     ipcMain.handle('youtube:info', (_event, url) => youtube.info(String(url)));
+    ipcMain.handle('youtube:search', (_event, query) => youtube.search(String(query)));
+    ipcMain.handle('youtube:playlist', async (_event, id) => (await youtube.playlist(String(id))).entries);
     ipcMain.handle('youtube:resolve', (_event, url) => youtube.resolve(String(url)));
     ipcMain.handle('youtube:update', () => youtube.update());
     ipcMain.handle('youtube:version', () => youtube.getVersion());

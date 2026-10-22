@@ -152,6 +152,12 @@ const browserApi: RadioApi = {
   onRoomEvent() {
     return () => {};
   },
+  async youtubeSearch() {
+    return [];
+  },
+  async youtubePlaylist() {
+    return [];
+  },
   async youtubeInfo() {
     throw new Error(DESKTOP_ONLY);
   },

@@ -4,18 +4,15 @@
 import Hls from 'hls.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { PlayerStatus, YouTubeEntry, YouTubeItem, YouTubeStream } from './types';
+import type { PlayerStatus, YouTubeItem, YouTubeStream } from './types';
 
-export const watchUrl = (videoId: string) => `https://www.youtube.com/watch?v=${videoId}`;
+export { watchUrl } from './queue';
 
 /** Audio-Adressen laufen nach einigen Stunden ab – vorab geholte nur kurz verwenden */
 const CACHE_MS = 60 * 60 * 1000;
 
 export interface YouTubeNow {
   item: YouTubeItem;
-  /** Titel der Playlist (leer bei Einzelvideo/Livestream) */
-  entries: YouTubeEntry[];
-  index: number;
   title: string;
   channel: string | null;
   cover: string | null;
@@ -30,28 +27,23 @@ export interface YouTubeState {
   playing: boolean;
   now: YouTubeNow | null;
   error: string | null;
-  /** Playlist-Inhalte, die gerade geladen werden (Item-ID) */
-  loadingList: string | null;
 }
 
-const INITIAL: YouTubeState = { status: 'idle', playing: false, now: null, error: null, loadingList: null };
+const INITIAL: YouTubeState = { status: 'idle', playing: false, now: null, error: null };
 
 interface Options {
-  /** Nächsten Musikwunsch aus der Wunschliste nehmen (null = keiner) */
-  nextWish?: () => YouTubeItem | null;
+  /** Song zu Ende oder „Weiter“ – die Queue entscheidet, was als Nächstes kommt */
+  onEnded?: () => void;
 }
 
 export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options: Options = {}) {
   const [state, setState] = useState<YouTubeState>(INITIAL);
   const optionsRef = useRef(options);
   optionsRef.current = options;
-  /** Wo es nach den Wünschen weitergeht */
-  const resumeRef = useRef<{ item: YouTubeItem; entries: YouTubeEntry[]; index: number; live: boolean } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const hlsRef = useRef<Hls | null>(null);
   const requestRef = useRef(0);
-  const entriesCache = useRef(new Map<string, YouTubeEntry[]>());
   const streamCache = useRef(new Map<string, { stream: YouTubeStream; at: number }>());
   const retryRef = useRef(false);
 
@@ -74,14 +66,8 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
     return stream;
   }, []);
 
-  /** Nächsten Playlist-Titel schon vorab auflösen, damit der Wechsel ohne Pause klappt */
-  const prefetch = useCallback(
-    (entries: YouTubeEntry[], index: number) => {
-      const next = entries[index + 1];
-      if (next) resolveStream(watchUrl(next.id)).catch(() => {});
-    },
-    [resolveStream],
-  );
+  /** Nächsten Song schon vorab auflösen, damit der Wechsel ohne Pause klappt */
+  const prefetch = useCallback((url: string) => void resolveStream(url).catch(() => {}), [resolveStream]);
 
   const attach = useCallback(
     (stream: YouTubeStream, startAt = 0) => {
@@ -108,13 +94,12 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
     [audioRef],
   );
 
-  /** Titel index der Liste (bzw. das Video/den Livestream) laden und abspielen */
+  /** Video bzw. Livestream laden und abspielen */
   const start = useCallback(
-    async (item: YouTubeItem, entries: YouTubeEntry[], index: number, startAt = 0, fresh = false) => {
+    async (item: YouTubeItem, startAt = 0, fresh = false) => {
       const request = ++requestRef.current;
       audioRef.current?.pause();
-      const entry = entries[index];
-      const url = entry ? watchUrl(entry.id) : item.url;
+      const url = item.url;
       setState((s) => ({
         ...s,
         status: 'loading',
@@ -122,13 +107,11 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
         error: null,
         now: {
           item,
-          entries,
-          index,
-          title: entry?.title ?? s.now?.title ?? item.title,
-          channel: entry?.channel ?? item.channel,
-          cover: entry?.thumbnail ?? item.thumbnail,
+          title: item.title,
+          channel: item.channel,
+          cover: item.thumbnail,
           fallbackCover: null,
-          duration: (entry?.duration ?? 0) * 1000,
+          duration: 0,
           live: item.kind === 'live',
         },
       }));
@@ -152,45 +135,21 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
             : s,
         );
         attach(stream, startAt);
-        prefetch(entries, index);
       } catch (err) {
         if (request !== requestRef.current) return;
         detach();
         setState((s) => ({ ...s, status: 'error', playing: false, error: String((err as Error).message || err) }));
       }
     },
-    [attach, audioRef, detach, prefetch, resolveStream],
+    [attach, audioRef, detach, resolveStream],
   );
 
   const play = useCallback(
-    async (item: YouTubeItem, index = 0) => {
+    (item: YouTubeItem) => {
       retryRef.current = false;
-      resumeRef.current = null;
-      if (item.kind !== 'playlist') return start(item, [], 0);
-      let entries = entriesCache.current.get(item.id);
-      if (!entries) {
-        const request = ++requestRef.current;
-        detach();
-        setState((s) => ({ ...s, loadingList: item.id, status: 'loading', playing: true, error: null }));
-        try {
-          entries = (await api.youtubeInfo(item.url)).entries;
-          entriesCache.current.set(item.id, entries);
-        } catch (err) {
-          if (request === requestRef.current)
-            setState((s) => ({ ...s, loadingList: null, status: 'error', playing: false, error: String((err as Error).message || err) }));
-          return;
-        } finally {
-          setState((s) => (s.loadingList === item.id ? { ...s, loadingList: null } : s));
-        }
-        if (request !== requestRef.current) return;
-      }
-      if (entries.length === 0) {
-        setState((s) => ({ ...s, status: 'error', playing: false, error: 'Die Playlist ist leer oder privat.' }));
-        return;
-      }
-      return start(item, entries, Math.min(index, entries.length - 1));
+      return start(item);
     },
-    [detach, start],
+    [start],
   );
 
   const pause = useCallback(() => {
@@ -204,7 +163,7 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
     if (!now || !audio) return;
     // Livestream: wieder live einsteigen; abgelaufene Adresse: neu holen und an derselben Stelle weiter
     if (now.live || !audio.src) {
-      start(now.item, now.entries, now.index, now.live ? 0 : audio.currentTime || 0, true);
+      start(now.item, now.live ? 0 : audio.currentTime || 0, true);
       return;
     }
     setState((s) => ({ ...s, playing: true, status: 'loading', error: null }));
@@ -213,58 +172,11 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
 
   const toggle = useCallback(() => (stateRef.current.playing ? pause() : resume()), [pause, resume]);
 
-  const step = useCallback(
-    (delta: number) => {
-      const { now } = stateRef.current;
-      if (!now) return;
-      retryRef.current = false;
-      if (now.entries.length > 1) {
-        const index = (now.index + delta + now.entries.length) % now.entries.length;
-        start(now.item, now.entries, index);
-      } else if (!now.live && audioRef.current) {
-        // Einzelvideo: "Zurück" springt an den Anfang
-        audioRef.current.currentTime = 0;
-      }
-    },
-    [audioRef, start],
-  );
-  /** Wunsch abspielen und merken, wo es danach weitergeht */
-  const playWish = useCallback(
-    (wish: YouTubeItem) => {
-      const { now } = stateRef.current;
-      const back = now && !now.item.wishedBy ? { item: now.item, entries: now.entries, index: now.index, live: now.live } : resumeRef.current;
-      retryRef.current = false;
-      const started = wish.kind === 'playlist' ? play(wish) : start(wish, [], 0);
-      // play() vergisst die Rückkehr-Stelle – für Wünsche gilt sie weiter
-      resumeRef.current = back;
-      return started;
-    },
-    [play, start],
-  );
-
-  /** Weiter: zuerst Wünsche, dann zurück zur Playlist bzw. zum Livestream */
-  const advance = useCallback(
-    (manual: boolean) => {
-      const { now } = stateRef.current;
-      // Gewünschte Playlist erst zu Ende spielen, dann der nächste Wunsch
-      if (now?.item.wishedBy && now.index < now.entries.length - 1) return void start(now.item, now.entries, now.index + 1);
-      const wish = optionsRef.current.nextWish?.();
-      if (wish) return void playWish(wish);
-      if (now?.item.wishedBy) {
-        const back = resumeRef.current;
-        resumeRef.current = null;
-        if (back?.live) return void start(back.item, [], 0);
-        if (back && back.entries.length > 1) return void start(back.item, back.entries, (back.index + 1) % back.entries.length);
-        if (!manual) setState((s) => ({ ...s, playing: false, status: 'idle' }));
-        return;
-      }
-      if (now && now.entries.length > 1) step(1);
-      else if (!manual) setState((s) => ({ ...s, playing: false, status: 'idle' }));
-    },
-    [playWish, start, step],
-  );
-  const next = useCallback(() => advance(true), [advance]);
-  const prev = useCallback(() => step(-1), [step]);
+  // Weiter = Song fertig: die Queue rückt nach. Zurück springt an den Anfang des Songs.
+  const next = useCallback(() => optionsRef.current.onEnded?.(), []);
+  const prev = useCallback(() => {
+    if (audioRef.current && !stateRef.current.now?.live) audioRef.current.currentTime = 0;
+  }, [audioRef]);
 
   const stop = useCallback(() => {
     requestRef.current += 1;
@@ -291,14 +203,14 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
       setState((s) => ({ ...s, status: 'playing', playing: true }));
     };
     const onWaiting = () => setState((s) => (s.playing ? { ...s, status: 'loading' } : s));
-    const onEnded = () => advance(false);
+    const onEnded = () => optionsRef.current.onEnded?.();
     const onError = () => {
       const { now, playing } = stateRef.current;
       if (!now || !playing || (!audio.getAttribute('src') && !hlsRef.current)) return;
       // Einmal neu auflösen (z. B. abgelaufene Adresse), dann aufgeben
       if (!retryRef.current) {
         retryRef.current = true;
-        start(now.item, now.entries, now.index, now.live ? 0 : audio.currentTime || 0, true);
+        start(now.item, now.live ? 0 : audio.currentTime || 0, true);
         return;
       }
       setState((s) => ({ ...s, status: 'error', playing: false, error: 'Wiedergabe von YouTube fehlgeschlagen.' }));
@@ -313,12 +225,11 @@ export function useYouTube(audioRef: React.RefObject<HTMLAudioElement>, options:
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [audioRef, start, advance]);
+  }, [audioRef, start]);
 
   useEffect(() => () => hlsRef.current?.destroy(), []);
 
   const position = useCallback(() => (audioRef.current?.currentTime ?? 0) * 1000, [audioRef]);
-  const entriesFor = useCallback((itemId: string) => entriesCache.current.get(itemId) ?? null, []);
 
-  return { state, play, playWish, pause, resume, toggle, next, prev, stop, seek, position, entriesFor };
+  return { state, play, prefetch, pause, resume, toggle, next, prev, stop, seek, position };
 }

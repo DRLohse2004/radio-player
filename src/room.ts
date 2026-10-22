@@ -5,7 +5,7 @@
 import Hls from 'hls.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { HostListen, HostState, PlayerStatus, RoomPrefs } from './types';
+import type { HostListen, HostState, PlayerStatus, RoomPrefs, YouTubeResult } from './types';
 
 export type RoomStatus = 'off' | 'connecting' | 'connected' | 'error';
 
@@ -59,11 +59,11 @@ export function useRoom(prefs: RoomPrefs, ready: boolean, myName: string) {
 
   const command = useCallback((action: string, value?: unknown) => call('/api/command', { action, value }), [call]);
   const search = useCallback(
-    async (query: string) => (await call(`/api/search?q=${encodeURIComponent(query)}`)).results as SearchResult[],
+    async (query: string) => (await call(`/api/search?q=${encodeURIComponent(query)}`)).results as YouTubeResult[],
     [call],
   );
   const playlist = useCallback(
-    async (id: string) => (await call(`/api/playlist?id=${encodeURIComponent(id)}`)).entries as SearchResult[],
+    async (id: string) => (await call(`/api/playlist?id=${encodeURIComponent(id)}`)).entries as YouTubeResult[],
     [call],
   );
   /** Einzelnes Video oder (whole) die ganze Playlist wünschen */
@@ -79,15 +79,6 @@ export function useRoom(prefs: RoomPrefs, ready: boolean, myName: string) {
   return { status, error, host, admin: !!admin, command, search, playlist, wish, login, logout: () => setAdmin(null) };
 }
 
-export interface SearchResult {
-  id: string;
-  title: string;
-  channel: string | null;
-  duration: number;
-  thumbnail: string | null;
-  live?: boolean;
-  kind?: 'playlist';
-}
 
 /** Beim Mithören dasselbe wie der Host abspielen */
 export function useListen(

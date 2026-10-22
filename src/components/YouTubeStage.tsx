@@ -41,13 +41,11 @@ export function YouTubeStage({ state, hasItems, sidebarOpen, position, onSeek, o
           <h2>YouTube</h2>
           {state.error ? (
             <p className="error-text">{state.error}</p>
-          ) : state.loadingList ? (
-            <p>Playlist wird geladen …</p>
           ) : (
             <p>
               {hasItems
-                ? 'Links in der Seitenleiste ein gespeichertes Video, eine Playlist oder einen Livestream wählen.'
-                : 'Links in der Seitenleiste einen YouTube-Link einfügen – Video, Playlist oder Livestream. Er wird gespeichert wie ein Sender.'}
+                ? 'Links in der Seitenleiste einen gespeicherten Eintrag wählen oder etwas in die Queue setzen.'
+                : 'Links in der Seitenleiste suchen oder einen YouTube-Link einfügen – Video, Playlist oder Livestream.'}
             </p>
           )}
           <p className="muted">Nur der Ton, ohne Anmeldung und ohne Werbung.</p>
@@ -64,7 +62,6 @@ export function YouTubeStage({ state, hasItems, sidebarOpen, position, onSeek, o
 
   const cover = coverFailed === now.cover ? now.fallbackCover : now.cover;
   const current = position();
-  const isPlaylist = now.entries.length > 1;
 
   return (
     <section className="spotify-panel">
@@ -77,21 +74,16 @@ export function YouTubeStage({ state, hasItems, sidebarOpen, position, onSeek, o
         </div>
         <div className="np-text">
           <div className="np-station">
-            {isPlaylist ? `YouTube · ${now.item.title}` : 'YouTube'}
+            {now.item.from ? `YouTube · ${now.item.from}` : 'YouTube'}
             {now.live && <span className="kind-badge live">Live</span>}
             {!state.playing && <span className="kind-badge">Pausiert</span>}
           </div>
-          <div className="track-info" key={`${now.item.id}|${now.index}`}>
+          <div className="track-info" key={now.item.id}>
             <div className="track-title" title={now.title}>
               {now.title}
             </div>
             {now.channel && <div className="track-artist">{now.channel}</div>}
             {now.item.wishedBy && <div className="track-album wish-by">Gewünscht von {now.item.wishedBy}</div>}
-            {isPlaylist && (
-              <div className="track-album">
-                Titel {now.index + 1} von {now.entries.length}
-              </div>
-            )}
           </div>
           {!now.live && now.duration > 0 && (
             <div className="progress seekable">

@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { isDesktop } from '../api';
 import type { AudioGraph } from '../audio';
-import { useListen, type SearchResult, type useRoom } from '../room';
+import { useListen, type useRoom } from '../room';
 import type { HostReceiver, PlayerStatus, RoomPrefs, Station, Track } from '../types';
 import { FullscreenView } from './FullscreenView';
-import { CloseIcon, ExpandIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
+import { CloseIcon, ExpandIcon, HeadphonesIcon, RoomIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
 import { Controls, Cover } from './Player';
-import { Queue } from './Queue';
-import { StationLogo } from './StationLogo';
+import { StationEditor } from './StationEditor';
+import { StationList } from './StationList';
+import { StationStore } from './StationStore';
+import { YouTubeSidebar } from './YouTubeSidebar';
 import { VOLUME_STEP } from '../shortcuts';
 
 type Room = ReturnType<typeof useRoom>;
@@ -88,6 +90,26 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
 
   const rules = host?.rules;
   const may = (rule: boolean | undefined) => room.admin || rule !== false;
+  const [editing, setEditing] = useState<Station | 'new' | null>(null);
+  const [storeOpen, setStoreOpen] = useState(false);
+  const roomTabs = (
+    <div className="room-head">
+      <div className="room-panels" role="tablist">
+        <button className={panel === 'stations' ? 'active' : ''} onClick={() => setPanel('stations')} title={`Room „${prefs.join?.name ?? ''}“`}>
+          Sender
+        </button>
+        <button className={panel === 'youtube' ? 'active' : ''} onClick={() => setPanel('youtube')}>
+          YouTube{host?.wishes?.length ? ` (${host.wishes.length})` : ''}
+        </button>
+        {receivers && (
+          <button className={panel === 'receivers' ? 'active' : ''} onClick={() => setPanel('receivers')}>
+            Empfang
+          </button>
+        )}
+      </div>
+      <RoomAdmin room={room} onMessage={setMessage} />
+    </div>
+  );
   const run = (action: string, value?: unknown) =>
     room.command(action, value).catch((err: Error) => setMessage(err.message));
 
@@ -205,67 +227,94 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
         />
       )}
 
-      {sidebarOpen && (
+      {sidebarOpen && panel === 'stations' && (
+        <StationList
+          stations={host?.stations ?? []}
+          currentId={host?.currentStationId ?? null}
+          status={host?.source === 'radio' ? (host.status ?? 'idle') : 'idle'}
+          canEdit={room.admin}
+          canPlay={may(rules?.guestStations)}
+          onSelect={(id) => run('station', id)}
+          onAdd={() => setEditing('new')}
+          onEdit={(station) => setEditing(station)}
+          onDelete={(id) => run('stationDelete', id)}
+          onMove={(id, to) => run('stationMove', { id, to })}
+          onOpenStore={() => setStoreOpen(true)}
+          onClose={() => onSidebar(false)}
+        >
+          {roomTabs}
+        </StationList>
+      )}
+      {sidebarOpen && panel === 'youtube' && (
+        <YouTubeSidebar
+          items={host?.youtube ?? []}
+          queue={host?.wishes ?? []}
+          now={host?.source === 'youtube' && host.wishes?.length ? (host.playing ? 'playing' : 'paused') : null}
+          rights={{
+            edit: room.admin,
+            play: may(rules?.guestStations),
+            move: room.admin,
+            remove: (w) => room.admin || w.clientId === prefs.clientId,
+          }}
+          search={room.search}
+          loadPlaylist={room.playlist}
+          onWish={(r, whole) => room.wish(r.id, whole).then(() => undefined)}
+          onSave={(url) => room.command('youtubeAdd', { url }).then(() => undefined)}
+          onPlay={(item) => run('youtubeItem', item.id)}
+          onQueue={(item) => run('youtubeQueue', item.id)}
+          onRename={(id, title) => run('youtubeRename', { id, title })}
+          onDelete={(id) => run('youtubeDelete', id)}
+          onMove={(id, to) => run('youtubeMove', { id, to })}
+          onStartQueue={() => run('wishStart')}
+          onRemoveWish={(id) => run('wishRemove', id)}
+          onMoveWish={(id, to) => run('wishMove', { id, to })}
+          onMoveSong={(wish, song, to, out) => run('songMove', { wish, song, to, out })}
+          onClose={() => onSidebar(false)}
+        >
+          {roomTabs}
+        </YouTubeSidebar>
+      )}
+      {sidebarOpen && panel === 'receivers' && receivers && (
         <aside className="sidebar room-sidebar">
           <header className="sidebar-header">
             <div className="brand">
               <RoomIcon size={22} />
               <span title={prefs.join?.url}>{prefs.join?.name ?? 'Room'}</span>
             </div>
-            <div className="sidebar-header-actions">
-              <button className="icon-button" onClick={() => onSidebar(false)} title="Seitenleiste ausblenden">
-                <CloseIcon size={18} />
-              </button>
-            </div>
+            <button className="icon-button" onClick={() => onSidebar(false)} title="Seitenleiste ausblenden">
+              <CloseIcon size={18} />
+            </button>
           </header>
-          <div className="room-panels" role="tablist">
-            <button className={panel === 'stations' ? 'active' : ''} onClick={() => setPanel('stations')}>
-              Sender
-            </button>
-            <button className={panel === 'youtube' ? 'active' : ''} onClick={() => setPanel('youtube')}>
-              YouTube{host?.wishes?.length ? ` (${host.wishes.length})` : ''}
-            </button>
-            {receivers && (
-              <button className={panel === 'receivers' ? 'active' : ''} onClick={() => setPanel('receivers')}>
-                Empfang
-              </button>
-            )}
-          </div>
-          <div className="sidebar-scroll">
-            {panel === 'stations' && (
-              <ul className="station-list flush">
-                {(host?.stations ?? []).map((st) => (
-                  <li key={st.id} className={`station-item${st.id === host?.currentStationId ? ' active' : ''}`}>
-                    <button
-                      className="station-select"
-                      disabled={!may(rules?.guestStations)}
-                      onClick={() => run('station', st.id)}
-                    >
-                      <StationLogo station={{ name: st.name, logo: st.logo ?? undefined }} className="small" />
-                      <span className="station-name">{st.name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {panel === 'youtube' && <WishPanel room={room} clientId={prefs.clientId} canPlay={may(rules?.guestStations)} onMessage={setMessage} />}
-            {panel === 'receivers' && receivers && (
-              <div className="room-receivers">
-                <p className="side-note">Empfang am Host – nur für Admins.</p>
-                <ReceiverToggle
-                  label="Spotify Connect"
-                  receiver={receivers.spotify}
-                  onChange={(enabled) => run('receiver', { kind: 'spotify', enabled })}
-                />
-                <ReceiverToggle
-                  label="AirPlay"
-                  receiver={receivers.airplay}
-                  onChange={(enabled) => run('receiver', { kind: 'airplay', enabled })}
-                />
-              </div>
-            )}
+          {roomTabs}
+          <div className="sidebar-scroll room-receivers">
+            <p className="side-note">Empfang am Host – nur für Admins.</p>
+            <ReceiverToggle
+              label="Spotify Connect"
+              receiver={receivers.spotify}
+              onChange={(enabled) => run('receiver', { kind: 'spotify', enabled })}
+            />
+            <ReceiverToggle label="AirPlay" receiver={receivers.airplay} onChange={(enabled) => run('receiver', { kind: 'airplay', enabled })} />
           </div>
         </aside>
+      )}
+      {editing && (
+        <StationEditor
+          station={editing === 'new' ? null : editing}
+          onSave={(values) => {
+            run('stationSave', { ...values, id: editing === 'new' ? undefined : editing.id });
+            setEditing(null);
+          }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+      {storeOpen && (
+        <StationStore
+          stations={host?.stations ?? []}
+          volume={prefs.volume}
+          onAdd={(station, name) => run('stationSave', { name, url: station.url })}
+          onPreviewChange={() => {}}
+          onClose={() => setStoreOpen(false)}
+        />
       )}
 
       <main className="stage">
@@ -413,185 +462,32 @@ function Progress({ progress, playing }: { progress: { position: number; duratio
   );
 }
 
-function WishPanel({ room, clientId, canPlay, onMessage }: { room: Room; clientId: string; canPlay: boolean; onMessage(text: string): void }) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[] | null>(null);
-  const [busy, setBusy] = useState(false);
+/** Admin-PIN des Hosts: angemeldet sieht und darf man im Room alles wie am Host */
+function RoomAdmin({ room, onMessage }: { room: Room; onMessage(text: string): void }) {
   const [pin, setPin] = useState('');
-  const [open, setOpen] = useState<{ id: string; entries: SearchResult[] | null } | null>(null);
-  const wishes = room.host?.wishes ?? [];
-  const saved = room.host?.youtube ?? [];
-
-  const wish = (r: SearchResult, whole = false) =>
-    room
-      .wish(r.id, whole)
-      .then(() => {
-        onMessage(`„${r.title}“ ist auf der Wunschliste.`);
-        setResults(null);
-        setOpen(null);
-        setQuery('');
-      })
-      .catch((err: Error) => onMessage(err.message));
-
-  const toggleOpen = (id: string) => {
-    if (open?.id === id) return setOpen(null);
-    setOpen({ id, entries: null });
-    room
-      .playlist(id)
-      .then((entries) => setOpen((o) => (o?.id === id ? { id, entries } : o)))
-      .catch((err: Error) => {
-        setOpen(null);
-        onMessage(err.message);
-      });
-  };
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    setOpen(null);
-    setBusy(true);
-    try {
-      setResults(await room.search(query.trim()));
-    } catch (err) {
-      onMessage((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  if (!room.host?.rules?.adminPin) return null;
   return (
-    <div className="room-wishes">
-      <form className="yt-add" onSubmit={submit}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Song, Playlist oder YouTube-Link …" />
-        <button className="icon-button" disabled={busy} title="Suchen">
-          <SearchIcon size={16} />
-        </button>
-      </form>
-      {busy && <p className="side-note">Suche …</p>}
-      {results && (
-        <ul className="station-list flush">
-          {results.length === 0 && <p className="side-note">Nichts gefunden.</p>}
-          {results.map((r) =>
-            r.kind === 'playlist' ? (
-              <li key={r.id} className="room-playlist">
-                <div className="station-item">
-                  <button className="station-select" onClick={() => toggleOpen(r.id)} title="Songs der Playlist zeigen">
-                    <span className="room-thumb">{r.thumbnail && <img src={r.thumbnail} alt="" />}</span>
-                    <span className="station-name">
-                      {r.title}
-                      <small>Playlist{r.channel ? ` · ${r.channel}` : ''}</small>
-                    </span>
-                    <span className="room-playlist-toggle">{open?.id === r.id ? '▾' : '▸'}</span>
-                  </button>
-                  <button className="mini" onClick={() => wish(r, true)} title="Ganze Playlist als einen Wunsch anhängen">
-                    Alle
-                  </button>
-                </div>
-                {open?.id === r.id && (
-                  <ul className="station-list flush">
-                    {!open.entries && <p className="side-note">Lade Songs …</p>}
-                    {open.entries?.map((e) => (
-                      <li key={e.id} className="station-item">
-                        <button className="station-select" onClick={() => wish(e)}>
-                          <span className="station-name">
-                            {e.title}
-                            <small>{formatTime(e.duration)}</small>
-                          </span>
-                          <PlusIcon size={16} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ) : (
-              <li key={r.id} className="station-item">
-                <button className="station-select" disabled={r.live} onClick={() => wish(r)}>
-                  <span className="room-thumb">{r.thumbnail && <img src={r.thumbnail} alt="" />}</span>
-                  <span className="station-name">
-                    {r.title}
-                    <small>{r.live ? 'Livestream' : formatTime(r.duration)}</small>
-                  </span>
-                  <PlusIcon size={16} />
-                </button>
-              </li>
-            ),
-          )}
-        </ul>
-      )}
-
-      <div className="sidebar-label flush yt-wishes-head">
-        <span>Queue{wishes.length ? ` (${wishes.length})` : ''}</span>
-        {wishes.length > 0 && (!room.host?.wishedBy || (room.host.wishPlaylist && room.admin)) && (room.admin || room.host?.rules?.guestSkip !== false) && (
-          <button className="mini" onClick={() => room.command('wishStart').catch((err: Error) => onMessage(err.message))}>
-            {room.host?.wishPlaylist ? 'Playlist beenden' : 'Jetzt spielen'}
+    <div className="room-admin">
+      {room.admin ? (
+        <>
+          <span className="muted small">✓ Admin – alles wie am Host</span>
+          <button className="mini" onClick={room.logout}>
+            Abmelden
           </button>
-        )}
-      </div>
-      {wishes.length === 0 ? (
-        <p className="side-note">Die Queue ist leer.</p>
+        </>
       ) : (
-        <Queue
-          wishes={wishes}
-          canMove={room.admin}
-          canRemove={(w) => room.admin || w.clientId === clientId}
-          onMove={(id, to) => room.command('wishMove', { id, to }).catch((err: Error) => onMessage(err.message))}
-          onRemove={(id) => room.command('wishRemove', id).catch((err: Error) => onMessage(err.message))}
-          loadEntries={(w) => room.playlist(w.url ? new URL(w.url).searchParams.get('list') ?? '' : w.videoId)}
-        />
-      )}
-
-      <div className="sidebar-label flush">Gespeichert beim Host</div>
-      {saved.length === 0 && <p className="side-note">Beim Host sind keine YouTube-Links gespeichert.</p>}
-      <ul className="station-list flush">
-        {saved.map((item) => (
-          <li key={item.id} className="station-item">
-            <button className="station-select" disabled={!canPlay} onClick={() => room.command('youtubeItem', item.id).catch((err: Error) => onMessage(err.message))} title="Jetzt spielen">
-              <span className="room-thumb">{item.thumbnail && <img src={item.thumbnail} alt="" />}</span>
-              <span className="station-name">
-                {item.title}
-                <small>{item.kind === 'playlist' ? 'Playlist' : item.kind === 'live' ? 'Livestream' : 'Video'}</small>
-              </span>
-            </button>
-            {item.kind !== 'live' && (
-              <button
-                className="icon-button"
-                title="Hinten an die Queue"
-                onClick={() =>
-                  room
-                    .command('youtubeQueue', item.id)
-                    .then(() => onMessage(`„${item.title}“ ist in der Queue.`))
-                    .catch((err: Error) => onMessage(err.message))
-                }
-              >
-                <PlusIcon size={16} />
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      {room.host?.rules?.adminPin && (
-        <div className="room-admin">
-          {room.admin ? (
-            <button className="mini" onClick={room.logout}>
-              Admin abmelden
-            </button>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                room
-                  .login(pin)
-                  .then(() => setPin(''))
-                  .catch((err: Error) => onMessage(err.message));
-              }}
-            >
-              <input value={pin} inputMode="numeric" maxLength={8} placeholder="Admin-PIN" onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
-              <button className="mini">Anmelden</button>
-            </form>
-          )}
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            room
+              .login(pin)
+              .then(() => setPin(''))
+              .catch((err: Error) => onMessage(err.message));
+          }}
+        >
+          <input value={pin} inputMode="numeric" maxLength={8} placeholder="Admin-PIN" onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
+          <button className="mini">Anmelden</button>
+        </form>
       )}
     </div>
   );

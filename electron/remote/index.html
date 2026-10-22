@@ -102,8 +102,17 @@
   .qrow.dragging { opacity: .5; }
   .qrow.drop-before { box-shadow: 0 -3px 0 var(--accent); }
   .qrow.drop-after { box-shadow: 0 3px 0 var(--accent); }
-  .songs-mini { margin: 4px 0 6px 46px; padding: 0; font-size: 13px; color: var(--muted); }
-  .songs-mini li { padding: 2px 0; }
+  .songs-mini { list-style: none; margin: 4px 0 6px 18px; padding: 0; font-size: 14px; color: var(--muted); }
+  .songs-mini li { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-radius: 8px; }
+  .songs-mini li.current { color: var(--accent); }
+  .songs-mini .song-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .songs-mini li.dragging { opacity: .5; }
+  .songs-mini li.drop-before { box-shadow: 0 -2px 0 var(--accent); }
+  .songs-mini li.drop-after { box-shadow: 0 2px 0 var(--accent); }
+  .handle.small { font-size: 18px; width: 22px; }
+  .icon-btn.small { width: 32px; height: 32px; font-size: 17px; }
+  .qrow.now { background: var(--surface-3); padding: 4px; }
+  .now-label { font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 8px 2px; }
   .no { width: 22px; text-align: center; color: var(--faint); font-variant-numeric: tabular-nums; }
   .spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: #fff; animation: spin .8s linear infinite; margin: 20px auto; }
   .icon-btn .spinner { margin: 0; width: 18px; height: 18px; }
@@ -432,12 +441,14 @@
   }
   setInterval(updateProgress, 1000);
 
-  // Admin sortiert die Wunschliste mit dem Finger am Griff ≡ (Pointer-Events – HTML-Drag&Drop geht auf Handys nicht)
+  // Admin sortiert mit dem Finger am Griff ≡ (Pointer-Events – HTML-Drag&Drop geht auf Handys nicht).
+  // Gilt für die Queue und für die Songs einer aufgeklappten Playlist; onDrop bekommt den Platz in der alten Liste.
   let dragging = false;
-  function startDrag(e, li, id) {
+  function startDrag(e, li, onDrop) {
     e.preventDefault();
+    e.stopPropagation();
     const handle = e.currentTarget;
-    const items = [...$('wishList').children];
+    const items = [...li.parentElement.children];
     const from = items.indexOf(li);
     let to = from;
     dragging = true;
@@ -456,7 +467,7 @@
       handle.removeEventListener('pointerup', up);
       handle.removeEventListener('pointercancel', up);
       dragging = false;
-      if (to !== from && to !== from + 1) command('wishMove', { id, to });
+      if (to !== from && to !== from + 1) onDrop(to);
       renderWishes();
     };
     handle.addEventListener('pointermove', move);
@@ -464,21 +475,10 @@
     handle.addEventListener('pointercancel', up);
   }
 
-  // Playlist in der Queue antippen: Songs aufklappen (nur zum Ansehen)
-  let openWish = null;
-  const wishSongs = new Map();
-  async function toggleWish(w) {
-    openWish = openWish === w.id ? null : w.id;
-    renderWishes();
-    if (!openWish || wishSongs.has(w.id)) return;
-    const list = w.url ? new URL(w.url).searchParams.get('list') : w.videoId;
-    try {
-      const { entries } = await api(`/api/playlist?id=${encodeURIComponent(list || '')}`);
-      wishSongs.set(w.id, entries);
-    } catch (err) {
-      openWish = null;
-      toast(err.message, true);
-    }
+  // Playlist in der Queue antippen: Songs auf- und zuklappen
+  const openWishes = new Set();
+  function toggleWish(w) {
+    if (!openWishes.delete(w.id)) openWishes.add(w.id);
     renderWishes();
   }
 
@@ -486,30 +486,40 @@
     if (dragging) return; // Live-Updates erst nach dem Ziehen zeichnen
     const list = $('wishList');
     const admin = !!adminToken;
+    // Was oben steht, läuft gerade (bzw. ist pausiert)
+    const now = state.source === 'youtube' && state.wishes.length ? (state.playing ? 'playing' : 'paused') : null;
     list.replaceChildren(
       ...state.wishes.map((w, i) => {
         const playlist = w.count !== undefined;
-        const open = openWish === w.id;
-        const li = el('li', { class: 'qrow' },
+        const open = openWishes.has(w.id);
+        const songs = w.entries || [];
+        const current = i === 0 && now;
+        const li = el('li', { class: `qrow${current ? ' now' : ''}` },
+          current ? el('div', { class: 'now-label' }, now === 'playing' ? '▶ Läuft gerade' : '❚❚ Pausiert') : null,
           el('div', { class: 'item' },
-            admin ? el('span', { class: 'handle', title: 'Ziehen zum Sortieren', onpointerdown: (e) => startDrag(e, li, w.id) }, '≡') : el('span', { class: 'no' }, i + 1),
+            admin ? el('span', { class: 'handle', title: 'Ziehen zum Sortieren', onpointerdown: (e) => startDrag(e, li, (to) => command('wishMove', { id: w.id, to })) }, '≡') : el('span', { class: 'no' }, i + 1),
             el('div', { class: 'thumb', style: `background-image:${cssUrl(w.thumbnail)}` }, w.duration ? el('span', {}, fmt(w.duration)) : null),
             el('div', { class: 'item-text', onclick: playlist ? () => toggleWish(w) : null },
               el('div', { class: 'item-title' }, w.title),
-              el('div', { class: 'item-sub' }, `von ${w.by}${playlist ? ` · ${open ? '▾' : '▸'} Playlist${w.count ? `, ${w.count} Songs` : ''}` : ''}`)),
+              el('div', { class: 'item-sub' }, `von ${w.by}${playlist ? ` · ${open ? '▾' : '▸'} Playlist, ${songs.length || w.count || ''} Songs` : ''}${current && playlist && songs[0] && !open ? ` · ${songs[0].title}` : ''}`)),
             admin || w.clientId === clientId
               ? el('button', { class: 'icon-btn', title: 'Aus der Queue löschen', onclick: () => command('wishRemove', w.id).then(() => addedIds.delete(w.videoId)) }, '×')
               : null),
           open
-            ? el('ol', { class: 'songs-mini' }, ...(wishSongs.get(w.id) ?? [{ title: 'Lade Songs …' }]).map((e) => el('li', {}, e.title)))
+            ? el('ol', { class: 'songs-mini' }, ...songs.map((song, n) => {
+                const row = el('li', { class: current && n === 0 ? 'current' : '' },
+                  admin ? el('span', { class: 'handle small', title: 'Ziehen zum Sortieren', onpointerdown: (e) => startDrag(e, row, (to) => command('songMove', { wish: w.id, song: song.id, to })) }, '≡') : el('span', { class: 'no' }, current && n === 0 ? '▶' : n + 1),
+                  el('span', { class: 'song-title' }, song.title),
+                  admin ? el('button', { class: 'icon-btn small', title: 'Ganz nach oben – spielt sofort', onclick: () => command('songMove', { wish: w.id, song: song.id, to: 0, out: true }) }, '↥') : null);
+                return row;
+              }))
             : null);
         return li;
       }),
     );
     $('wishEmpty').hidden = state.wishes.length > 0;
-    const playingWish = state.source === 'youtube' && state.wishedBy && !(state.wishPlaylist && admin);
-    $('wishStart').hidden = !state.wishes.length || playingWish || !(admin || state.rules.guestSkip);
-    $('wishStart').textContent = state.wishPlaylist ? 'Playlist beenden' : 'Jetzt spielen';
+    $('wishStart').hidden = !state.wishes.length || now === 'playing' || !(admin || state.rules.guestSkip);
+    $('wishStart').textContent = now === 'paused' ? 'Weiter' : 'Jetzt spielen';
   }
 
   function renderStations() {

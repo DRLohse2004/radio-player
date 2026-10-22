@@ -128,6 +128,11 @@ abschotten, lassen oft nur diesen Port durch. Die App bleibt die Quelle der Wahr
   Fehlversuche zählen zusammen mit der Admin-PIN (max. 5 pro Minute und IP). Test: `test/remote-access.test.ts`.
 - Schlüssel `k` aus dem QR-Code: Einstellung `remote.key`, „Neuen QR-Code erzeugen“ wechselt ihn und sperrt alle Geräte aus. Admin per
   PIN (`/api/admin`, max. 5 Versuche pro Minute und IP) – das Token gilt bis zum Neustart oder bis die PIN wechselt.
+- Queue (`src/queue.ts`, getestet): Was oben steht, spielt. `consumeTop` nimmt nach Songende bzw. „Weiter“ den obersten Song
+  weg (bei Playlists Song für Song), `moveSong`/`extractSong` verschieben Songs in bzw. aus einer Playlist. Die Oberfläche
+  spielt immer `topTrack(queue)`; ändert sich das, wechselt der Player. Playlists halten ihre Songs (höchstens 200) im
+  Eintrag, damit Room und Handy sie zeigen und sortieren können. Room-Admins bearbeiten Sender und gespeicherte
+  YouTube-Einträge über Befehle wie `stationSave`, `youtubeAdd`, `songMove` (Server: nur mit Admin-Token).
 - Suche: `yt-dlp ytsearch12:` plus bis zu 4 Playlists (YouTube-Suchseite mit Filter `sp=EgIQAw==`); Video-Treffer werden
   zwischengespeichert, damit ein Wunsch ohne zweiten Abruf sofort steht. `/api/playlist?id=` liefert die Songs einer Playlist,
   `/api/wish` mit `{ playlist }` wünscht sie als Ganzes (ein Wunsch, `count` = Anzahl Songs; ohne Längengrenze).

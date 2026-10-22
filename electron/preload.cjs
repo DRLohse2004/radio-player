@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('radioApi', {
   onAirplayEvent: (callback) => subscribe('airplay:event', callback),
   onAirplayAudio: (callback) => subscribe('airplay:audio', callback),
   youtubeInfo: (url) => ipcRenderer.invoke('youtube:info', url),
+  youtubeSearch: (query) => ipcRenderer.invoke('youtube:search', query),
+  youtubePlaylist: (id) => ipcRenderer.invoke('youtube:playlist', id),
   youtubeResolve: (url) => ipcRenderer.invoke('youtube:resolve', url),
   youtubeUpdate: () => ipcRenderer.invoke('youtube:update'),
   youtubeVersion: () => ipcRenderer.invoke('youtube:version'),

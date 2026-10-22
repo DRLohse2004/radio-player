@@ -141,9 +141,8 @@ function allowed(action, who) {
     case 'toggle':
     case 'next':
     case 'prev':
-      return r.guestSkip;
     case 'wishStart':
-      return r.guestSkip && !snapshot?.wishPlaylist; // gewünschte Playlist abbrechen: nur Admin
+      return r.guestSkip;
     case 'volume':
       return r.guestVolume;
     case 'station':
@@ -296,7 +295,7 @@ async function handle(req, res) {
         // Ganze Playlist: ein Wunsch, der beim Host als Playlist läuft
         const list = await youtube.playlist(String(body.playlist));
         const duration = list.entries.reduce((sum, e) => sum + (e.duration || 0), 0);
-        video = { id: list.id, title: list.title, channel: list.channel, thumbnail: list.thumbnail, duration, count: list.entries.length };
+        video = { id: list.id, title: list.title, channel: list.channel, thumbnail: list.thumbnail, duration, count: list.entries.length, entries: list.entries };
       } else if (!video || Date.now() - video.at > 3600_000) video = await youtube.video(id);
       if (video.live) return json(res, 400, { error: 'Livestreams können nicht gewünscht werden.' });
       const result = await request({ action: 'wish', video, client: who });

@@ -92,14 +92,13 @@ export interface HostState {
   album?: string | null;
   cover?: string | null;
   wishedBy?: string | null;
-  wishPlaylist?: boolean;
   live?: boolean;
   volume?: number;
   volumeEnabled?: boolean;
   progress?: { position: number; duration: number; at: number } | null;
-  stations?: { id: string; name: string; logo: string | null }[];
+  stations?: Station[];
   currentStationId?: string | null;
-  youtube?: { id: string; title: string; thumbnail: string | null; kind: YouTubeItem['kind'] }[];
+  youtube?: YouTubeItem[];
   wishes?: Wish[];
   rules?: { guestVolume: boolean; guestSkip: boolean; guestStations: boolean; maxWishes: number; maxMinutes: number; adminPin: boolean };
   /** Zum Mithören: was ein anderes Radio selbst abspielen muss */
@@ -173,6 +172,10 @@ export interface Wish {
   count?: number;
   /** Link eines gespeicherten Eintrags des Hosts (sonst aus videoId gebildet) */
   url?: string;
+  /** Songs der Playlist in Spielreihenfolge (der erste läuft, wenn sie oben steht) */
+  entries?: YouTubeEntry[];
+  /** Livestream (nur vom Host bzw. Admin) */
+  live?: boolean;
 }
 
 export interface RemoteClient {
@@ -201,6 +204,9 @@ export interface WishVideo {
   thumbnail: string | null;
   count?: number;
   url?: string;
+  /** Songs einer gewünschten Playlist (vom Server schon geladen) */
+  entries?: YouTubeEntry[];
+  live?: boolean;
 }
 
 export interface RemoteCommand {
@@ -280,6 +286,19 @@ export interface YouTubeItem {
   count?: number;
   /** Wunsch über die Fernbedienung: von wem */
   wishedBy?: string;
+  /** Song aus einer Playlist der Queue: deren Titel */
+  from?: string;
+}
+
+/** Treffer der YouTube-Suche (Video oder Playlist) */
+export interface YouTubeResult {
+  id: string;
+  title: string;
+  channel: string | null;
+  duration: number;
+  thumbnail: string | null;
+  live?: boolean;
+  kind?: 'playlist';
 }
 
 export interface YouTubeEntry {
@@ -419,6 +438,9 @@ export interface RadioApi {
   roomJoin(options: { url: string; clientId: string; name: string; pin?: string; code?: string; request?: boolean }): Promise<{ status: number; body: any }>;
   onRoomEvent(callback: (event: RoomEvent) => void): () => void;
   youtubeInfo(url: string): Promise<YouTubeInfo>;
+  /** Suche wie bei den Wünschen: Videos und Playlists (bzw. ein eingefügter Link) */
+  youtubeSearch(query: string): Promise<YouTubeResult[]>;
+  youtubePlaylist(id: string): Promise<YouTubeResult[]>;
   youtubeResolve(url: string): Promise<YouTubeStream>;
   youtubeUpdate(): Promise<{ output: string; version: string | null }>;
   youtubeVersion(): Promise<string | null>;
