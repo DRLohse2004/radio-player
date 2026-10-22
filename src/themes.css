@@ -476,14 +476,16 @@
 [data-theme='phosphor'] .field input {
   border-radius: 0;
 }
-[data-theme='phosphor'] .sidebar .station-item.active,
 [data-theme='phosphor'] .tabs button.active {
   background: var(--accent);
   color: var(--bg);
   text-shadow: none;
 }
-[data-theme='phosphor'] .sidebar .station-item.active .eq i {
-  background: var(--bg);
+/* Aktiver Eintrag nur umrahmt: aufgeklappte YouTube-Playlists liegen mit darin */
+[data-theme='phosphor'] .sidebar .station-item.active,
+[data-theme='phosphor'] .sidebar .station-item.active:hover {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 [data-theme='phosphor'] .station-item.active::before {
   display: none;
@@ -819,10 +821,21 @@
   font-weight: 800;
   text-transform: uppercase;
 }
-[data-theme='plakat'] .tabs button.active,
-[data-theme='plakat'] .sidebar .station-item.active {
+[data-theme='plakat'] .tabs button.active {
   background: #111;
   color: #fff;
+}
+/* Aktiver Eintrag gelb statt schwarz: aufgeklappte YouTube-Playlists liegen mit darin */
+[data-theme='plakat'] .sidebar .station-item.active,
+[data-theme='plakat'] .sidebar .station-item.active:hover {
+  background: var(--bg);
+  box-shadow: inset 0 0 0 3px #111;
+}
+[data-theme='plakat'] .yt-queue {
+  border-top-color: rgba(0, 0, 0, 0.2);
+}
+[data-theme='plakat'] .yt-queue button:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 [data-theme='plakat'] .station-item.active::before {
   display: none;
@@ -1255,6 +1268,29 @@
 [data-theme='kofferradio'] .like-button:hover,
 [data-theme='plakat'] .like-button:hover {
   background: rgba(0, 0, 0, 0.06);
+}
+[data-theme='kofferradio'] .yt-add input,
+[data-theme='kofferradio'] .yt-rename input,
+[data-theme='plakat'] .yt-add input,
+[data-theme='plakat'] .yt-rename input {
+  background: var(--surface);
+}
+[data-theme='plakat'] .yt-add input,
+[data-theme='plakat'] .yt-rename input {
+  border: 2px solid #111;
+}
+[data-theme='kofferradio'] .yt-queue {
+  border-top-color: var(--border);
+}
+[data-theme='kofferradio'] .yt-queue button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+[data-theme='kofferradio'] .yt-row .station-actions,
+[data-theme='kofferradio'] .yt-row .confirm,
+[data-theme='plakat'] .yt-row .station-actions,
+[data-theme='plakat'] .yt-row .confirm {
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 [data-theme='kofferradio'] .volume input::-webkit-slider-thumb {
   background: var(--text);
