@@ -36,6 +36,7 @@ import './store.css';
 import './spotify.css';
 import './layout.css';
 import { DECK_THEMES, THEMES, useTheme } from './themes';
+import { VOLUME_STEP } from './shortcuts';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 3000;
@@ -912,25 +913,13 @@ export default function App() {
 
   // --- Tastatur ------------------------------------------------------------------
 
+  // Der Handler wird weiter unten bei jedem Render neu gesetzt, damit er immer den aktuellen Zustand sieht
+  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (editing || settingsOpen || storeOpen || remoteOpen || roomOpen || joined) return;
-      if (e.key === 'F11') {
-        e.preventDefault();
-        setFullscreen((f) => !f);
-      } else if (e.key === 'Escape') {
-        setFullscreen(false);
-      } else if (!isTypingTarget(e.target)) {
-        if (e.key === ' ') {
-          e.preventDefault();
-          ui.toggle();
-        } else if (e.key === 'ArrowRight') ui.next();
-        else if (e.key === 'ArrowLeft') ui.prev();
-      }
-    };
+    const onKey = (e: KeyboardEvent) => keyRef.current(e);
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editing, settingsOpen, storeOpen, remoteOpen, roomOpen, joined, ui.toggle, ui.next, ui.prev]);
+  }, []);
 
   // --- Windows-Medienanzeige (Medientasten, Overlay) -------------------------
 
@@ -1137,6 +1126,58 @@ export default function App() {
   const closeSidebar = () => setSidebarOpen(false);
   const volumeStyle = { '--fill': `${ui.volume * 100}%` } as CSSProperties;
   const visibleTabs = TABS.filter((t) => prefs.tabs[t.id]);
+
+  keyRef.current = (e: KeyboardEvent) => {
+    if (editing || settingsOpen || storeOpen || remoteOpen || roomOpen || joined) return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const key = e.key;
+    if (key === 'F11') {
+      e.preventDefault();
+      setFullscreen((f) => !f);
+      return;
+    }
+    if (key === 'Escape') {
+      setFullscreen(false);
+      return;
+    }
+    const fKey = /^F([1-5])$/.exec(key);
+    if (fKey) {
+      e.preventDefault();
+      const target = visibleTabs[Number(fKey[1]) - 1];
+      if (target) setTab(target.id);
+      return;
+    }
+    // In Eingabefeldern tippt man – dort gelten nur F-Tasten
+    const target = e.target;
+    if (target instanceof HTMLElement && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return;
+    // Leertaste auf einem Knopf drückt den Knopf
+    if (key === ' ' && isTypingTarget(target)) return;
+    const changeVolume = (delta: number) => {
+      if (onBtTab || onApTab || (onSpotifyTab && !sp.active)) return;
+      ui.setVolume(Math.min(1, Math.max(0, Math.round((ui.volume + delta) * 100) / 100)));
+    };
+    const actions: Record<string, () => void> = {
+      ' ': ui.toggle,
+      ArrowRight: ui.next,
+      ArrowLeft: ui.prev,
+      ArrowUp: () => changeVolume(VOLUME_STEP),
+      ArrowDown: () => changeVolume(-VOLUME_STEP),
+      t: () => (view === 'radio' || view === 'youtube') && setMuted((m) => !m),
+      m: () => currentTrack && toggleFavorite(currentTrack),
+      v: () => setLibraryOpen((o) => !o),
+      s: () => setSidebarOpen(!prefs.sidebarOpen),
+      '/': () => setStoreOpen(true),
+      ',': () => setSettingsOpen(true),
+    };
+    const action = actions[key.length === 1 ? key.toLowerCase() : key];
+    if (action) {
+      e.preventDefault();
+      action();
+    } else if (/^[1-9]$/.test(key) && stations[Number(key) - 1]) {
+      e.preventDefault();
+      selectStation(stations[Number(key) - 1].id);
+    }
+  };
   const theme = prefs.theme;
   const deck = DECK_THEMES.includes(theme) ? deckStations(stations, currentId) : [];
   const analyser = graph?.analyser ?? null;
@@ -1251,7 +1292,7 @@ export default function App() {
           <button
             className={`icon-button${prefs.sidebarOpen ? ' active' : ''}`}
             onClick={() => setSidebarOpen(!prefs.sidebarOpen)}
-            title={prefs.sidebarOpen ? 'Seitenleiste ausblenden' : 'Seitenleiste einblenden'}
+            title={prefs.sidebarOpen ? 'Seitenleiste ausblenden (S)' : 'Seitenleiste einblenden (S)'}
           >
             <SidebarIcon size={20} />
           </button>
@@ -1286,8 +1327,8 @@ export default function App() {
           </div>
           {visibleTabs.length > 1 ? (
             <div className="tabs stage-tabs" role="tablist">
-              {visibleTabs.map(({ id, label }) => (
-                <button key={id} role="tab" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+              {visibleTabs.map(({ id, label }, i) => (
+                <button key={id} role="tab" className={tab === id ? 'active' : ''} onClick={() => setTab(id)} data-key={`F${i + 1}`} title={`${label} (F${i + 1})`}>
                   {label}
                   {tabPlaying[id] && <span className={`tab-dot${id === 'radio' ? '' : ` ${id}`}`} />}
                 </button>
@@ -1300,7 +1341,7 @@ export default function App() {
             <button
               className={`icon-button${libraryOpen ? ' active' : ''}`}
               onClick={() => setLibraryOpen((o) => !o)}
-              title="Verlauf & gemerkte Songs"
+              title="Verlauf & gemerkte Songs (V)"
             >
               <HistoryIcon size={20} />
             </button>
@@ -1320,7 +1361,7 @@ export default function App() {
               <RoomIcon size={20} />
               {remote.clients.some((c) => c.online && c.kind === 'radio') && <span className="badge-dot" />}
             </button>
-            <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Einstellungen">
+            <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Einstellungen (,)">
               <SettingsIcon size={20} />
             </button>
             <button className="icon-button" onClick={() => setFullscreen(true)} title="Vollbild (F11)">
@@ -1376,12 +1417,13 @@ export default function App() {
               {nowPlaying && nowPlaying.kind !== 'program' && status === 'playing' && <KindBadge kind={nowPlaying.kind} />}
             </div>
             {theme === 'tafel' ? <FlapTrack nowPlaying={nowPlaying} station={current} /> : <TrackInfo nowPlaying={nowPlaying} station={current} />}
-            {theme === 'phosphor' && <Spectrum analyser={analyser} active={status === 'playing'} />}
+            {(theme === 'phosphor' || theme === 'terminal') && <Spectrum analyser={analyser} active={status === 'playing'} />}
             {currentTrack && (
               <button
                 className={`like-button${isFavorite(currentTrack) ? ' active' : ''}`}
                 onClick={() => toggleFavorite(currentTrack)}
-                title={isFavorite(currentTrack) ? 'Nicht mehr merken' : 'Song merken'}
+                title={isFavorite(currentTrack) ? 'Nicht mehr merken (M)' : 'Song merken (M)'}
+                data-key="M"
               >
                 <HeartIcon size={18} filled={isFavorite(currentTrack)} />
                 {isFavorite(currentTrack) ? 'Gemerkt' : 'Merken'}
@@ -1393,7 +1435,13 @@ export default function App() {
           {theme === 'kofferradio' && <div className="speaker-grille" aria-hidden="true" />}
         </section>
         {deck.length > 0 && (
-          <StationDeck theme={theme} stations={deck} currentId={currentId} playing={wantPlay} onSelect={selectStation} />
+          <StationDeck theme={theme} stations={deck} all={stations} currentId={currentId} playing={wantPlay} onSelect={selectStation} />
+        )}
+        {theme === 'terminal' && (
+          <button className="term-search" onClick={() => setStoreOpen(true)} title="Sender-Store öffnen (/)">
+            <span className="term-prompt">›</span> Sender suchen …<span className="term-cursor" aria-hidden="true" />
+            <kbd>/</kbd>
+          </button>
         )}
         </>
         )}
@@ -1402,6 +1450,11 @@ export default function App() {
           {theme === 'phosphor' && (
             <div className="key-hints" aria-hidden="true">
               [←] zurück [Leer] pause [→] weiter [F11] vollbild
+            </div>
+          )}
+          {theme === 'terminal' && (
+            <div className="key-hints" aria-hidden="true">
+              <kbd>←</kbd> <kbd>Leer</kbd> <kbd>→</kbd> <kbd>↑↓</kbd> Lautstärke · <kbd>,</kbd> alle Kürzel in den Einstellungen
             </div>
           )}
           <Controls

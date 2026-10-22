@@ -40,7 +40,7 @@ export interface Preferences {
   theme: ThemeId;
 }
 
-export type ThemeId = 'standard' | 'kofferradio' | 'phosphor' | 'roehre' | 'plakat' | 'wohnzimmer' | 'tafel';
+export type ThemeId = 'standard' | 'kofferradio' | 'phosphor' | 'roehre' | 'plakat' | 'wohnzimmer' | 'tafel' | 'terminal';
 
 export type SourceTab = 'radio' | 'youtube' | 'spotify' | 'airplay' | 'bluetooth';
 

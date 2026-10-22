@@ -27,6 +27,10 @@ import '@fontsource/barlow/600.css';
 import '@fontsource/barlow-condensed/500.css';
 import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/700.css';
+import '@fontsource/jetbrains-mono/800.css';
 import './themes.css';
 
 export interface ThemeInfo {
@@ -47,10 +51,11 @@ export const THEMES: ThemeInfo[] = [
   { id: 'plakat', name: 'Plakat', hint: 'Knallgelb, dicke Rahmen, riesige Schrift', swatch: ['#ffd23f', '#ffffff', '#111111', '#ff6fb5'], font: "'Anton', sans-serif" },
   { id: 'wohnzimmer', name: 'Wohnzimmer', hint: 'Dunkles Olivgrün mit Senderregal aus Eiche', swatch: ['#1f2a24', '#2a372f', '#efe8dc', '#e08a5c'], font: "'Syne', sans-serif" },
   { id: 'tafel', name: 'Anzeigetafel', hint: 'Fallblattanzeige wie am Bahnhof', swatch: ['#151618', '#26272a', '#f2f0e6', '#f5c400'], font: "'Barlow Condensed', sans-serif" },
+  { id: 'terminal', name: 'Terminal', hint: 'Moderne Konsole, jeder Knopf zeigt sein Tastenkürzel', swatch: ['#0c0c0c', '#161616', '#e6e6e6', '#3fd16a'], font: "'JetBrains Mono', monospace" },
 ];
 
 /** Designs mit eigener Senderleiste unter dem Player (Stationstasten, Regal, Tafel …) */
-export const DECK_THEMES: ThemeId[] = ['kofferradio', 'roehre', 'plakat', 'wohnzimmer', 'tafel'];
+export const DECK_THEMES: ThemeId[] = ['kofferradio', 'roehre', 'plakat', 'wohnzimmer', 'tafel', 'terminal'];
 
 /** Setzt das Design an <html>, damit auch Dialoge und Vollbild die Farben übernehmen. */
 export function useTheme(theme: ThemeId) {
