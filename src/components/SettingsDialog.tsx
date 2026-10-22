@@ -247,7 +247,7 @@ export function SettingsDialog({ prefs, update, onChange, onClose }: Props) {
               </div>
             ))}
           </dl>
-          <p className="shortcut-note">Gilt in allen Designs, nur nicht beim Tippen in einem Eingabefeld.</p>
+          <p className="shortcut-note">Gilt in allen Designs, nur nicht beim Tippen in einem Eingabefeld. Im Room steuern Leertaste, Pfeile und 1–9 den Host; dazu gehen S, Komma und F11.</p>
         </section>
 
         <footer className="modal-footer">

@@ -7,6 +7,7 @@ import { FullscreenView } from './FullscreenView';
 import { CloseIcon, ExpandIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
 import { Controls, Cover } from './Player';
 import { StationLogo } from './StationLogo';
+import { VOLUME_STEP } from '../shortcuts';
 
 type Room = ReturnType<typeof useRoom>;
 
@@ -23,12 +24,14 @@ interface Props {
   onFullscreen(open: boolean): void;
   /** Vollbild-Einstellungen dieses Radios */
   display: { weatherCity: string; swapMinutes: number; visualizer: boolean };
+  /** Tastenkürzel aktiv – aus, solange ein Dialog offen ist */
+  shortcuts: boolean;
 }
 
 const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** Ansicht eines Radios, das einem Room beigetreten ist: zeigt und steuert den Host */
-export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpenDialog, onOpenSettings, fullscreen, onFullscreen, display }: Props) {
+export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpenDialog, onOpenSettings, fullscreen, onFullscreen, display, shortcuts }: Props) {
   const host = room.host;
   const audioRef = useRef<HTMLAudioElement>(null);
   const listening = prefs.mode === 'listen';
@@ -74,6 +77,14 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
     if (panel === 'receivers' && !receivers) setPanel('stations');
   }, [panel, receivers]);
 
+  // Tastenkürzel wie im eigenen Radio – der Handler wird unten bei jedem Render neu gesetzt
+  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyRef.current(e);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const rules = host?.rules;
   const may = (rule: boolean | undefined) => room.admin || rule !== false;
   const run = (action: string, value?: unknown) =>
@@ -94,6 +105,46 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
   const volumeDisabled = !listening && (!host?.volumeEnabled || !may(rules?.guestVolume));
   const volumeStyle = { '--fill': `${volume * 100}%` } as CSSProperties;
 
+  keyRef.current = (e: KeyboardEvent) => {
+    if (!shortcuts || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key === 'F11') {
+      e.preventDefault();
+      onFullscreen(!fullscreen);
+      return;
+    }
+    if (e.key === 'Escape') {
+      if (fullscreen) onFullscreen(false);
+      return;
+    }
+    const target = e.target;
+    if (target instanceof HTMLElement && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return;
+    if (e.key === ' ' && target instanceof HTMLButtonElement) return;
+    const changeVolume = (delta: number) => {
+      if (volumeDisabled) return;
+      const v = Math.min(1, Math.max(0, Math.round((volume + delta) * 100) / 100));
+      if (listening) onChange({ volume: v });
+      else run('volume', v);
+    };
+    const actions: Record<string, () => void> = {
+      ' ': () => run('toggle'),
+      ArrowRight: () => run('next'),
+      ArrowLeft: () => run('prev'),
+      ArrowUp: () => changeVolume(VOLUME_STEP),
+      ArrowDown: () => changeVolume(-VOLUME_STEP),
+      s: () => onSidebar(!sidebarOpen),
+      ',': onOpenSettings,
+    };
+    const action = actions[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+    const station = /^[1-9]$/.test(e.key) ? host?.stations?.[Number(e.key) - 1] : undefined;
+    if (action) {
+      e.preventDefault();
+      action();
+    } else if (station) {
+      e.preventDefault();
+      run('station', station.id);
+    }
+  };
+
   const connection =
     room.status === 'connected'
       ? listening
@@ -110,18 +161,6 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
       : room.status === 'error'
         ? room.error ?? 'Verbindung verloren'
         : 'Verbinde mit Host …';
-  // Vollbild: F11 umschalten, Esc beendet
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'F11') {
-        e.preventDefault();
-        onFullscreen(!fullscreen);
-      } else if (e.key === 'Escape' && fullscreen) onFullscreen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [fullscreen, onFullscreen]);
-
   // „Zuvor“ im Vollbild: die letzten Titel, die beim Host liefen, seit dieses Radio verbunden ist
   const [history, setHistory] = useState<Track[]>([]);
   const trackKey = host?.playing && host.title ? `${host.artist ?? ''}|${host.title}` : null;

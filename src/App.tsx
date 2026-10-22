@@ -1217,6 +1217,7 @@ export default function App() {
           fullscreen={fullscreen}
           onFullscreen={setFullscreen}
           display={{ weatherCity: prefs.weatherCity, swapMinutes: prefs.swapMinutes, visualizer: prefs.visualizer }}
+          shortcuts={!settingsOpen && !roomOpen}
         />
       ) : (
       <>
@@ -1454,7 +1455,7 @@ export default function App() {
           )}
           {theme === 'terminal' && (
             <div className="key-hints" aria-hidden="true">
-              <kbd>←</kbd> <kbd>Leer</kbd> <kbd>→</kbd> <kbd>↑↓</kbd> Lautstärke · <kbd>,</kbd> alle Kürzel in den Einstellungen
+              <kbd>←</kbd> <kbd>Leer</kbd> <kbd>→</kbd> <kbd>↑↓</kbd> <kbd>,</kbd> Kürzel
             </div>
           )}
           <Controls
