@@ -137,7 +137,12 @@ anspricht. So kommt sie auch durch Netze, in denen nur Port 80 offen ist.
   (ohne Schlüssel) liefert `{ app: 'radio', name, version, open, listeners }` und – nur wenn der Room freigegeben ist –
   den Schlüssel. Radios melden sich mit `x-kind: radio` und erscheinen getrennt von Handys.
 - **Finden:** `electron/room.cjs` fragt im eigenen /24-Netz jeder Netzwerkkarte `/api/room` auf Port 80 und 8080 ab
-  (160 parallel, 0,8 s Zeitlimit, ca. 3 s). Andere Netze: Adresse von Hand.
+  (160 parallel, 0,8 s Zeitlimit, ca. 3 s). Parallel schickt `electron/discovery.cjs` die UDP-Frage `radio-room?` an
+  Port 47811 – an die Broadcast-Adresse jedes eigenen Netzes, an 255.255.255.255 und an die unter „Auch in diesen
+  Netzen suchen“ eingetragenen Ziele (`room.networks`). Der Host antwortet, solange sein Webserver läuft, mit
+  `{ app: 'radio', port }`; die Antwort wird dann per `/api/room` geprüft. Eingetragene /24-Netze (10.0.11.255,
+  10.0.11.0/24, 10.0.11.x) werden zusätzlich Adresse für Adresse abgefragt, weil Router gerichtete Broadcasts
+  meist verwerfen; größere Netze (10.0.255.255) nur per Broadcast. Sonst bleibt die Adresse von Hand.
 - **Gast:** Der Hauptprozess hält die Server-Sent-Events-Verbindung (`room:event`), reicht Befehle, Suche, Wünsche und
   Admin-PIN weiter (`room:request`, nur `/api/command|search|wish|admin|state`) und verbindet bei Abbruch nach 3 s neu.
   Die Oberfläche zeigt dann `RoomView` statt der eigenen Quellen; die eigene Wiedergabe wird beendet.

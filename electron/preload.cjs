@@ -47,7 +47,7 @@ contextBridge.exposeInMainWorld('radioApi', {
   remoteReply: (id, result) => ipcRenderer.send('remote:reply', id, result),
   onRemoteCommand: (callback) => subscribe('remote:command', callback),
   onRemoteClients: (callback) => subscribe('remote:clients', callback),
-  roomScan: () => ipcRenderer.invoke('room:scan'),
+  roomScan: (networks) => ipcRenderer.invoke('room:scan', networks),
   roomProbe: (address) => ipcRenderer.invoke('room:probe', address),
   roomConnect: (options) => ipcRenderer.invoke('room:connect', options),
   roomDisconnect: () => ipcRenderer.invoke('room:disconnect'),

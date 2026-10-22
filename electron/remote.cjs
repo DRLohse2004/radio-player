@@ -8,6 +8,7 @@ const http = require('node:http');
 const path = require('node:path');
 const QRCode = require('qrcode');
 const youtube = require('./youtube.cjs');
+const discovery = require('./discovery.cjs');
 const { pickInterfaces } = require('./airplay/raop.cjs');
 
 const PORTS = [80, 8080, 8000];
@@ -313,6 +314,8 @@ async function start(opts) {
     }
   }
   if (!server) return { running: false, error: 'Kein freier Port für die Fernbedienung (80, 8080, 8000).' };
+  // Andere Radios finden diesen Host auch per Broadcast – auch aus Nachbarnetzen
+  await discovery.startResponder(() => server?.address()?.port);
   return info();
 }
 
@@ -328,6 +331,7 @@ function stop() {
   for (const s of streams) s.res.end();
   streams.clear();
   adminTokens.clear();
+  discovery.stopResponder();
   const s = server;
   server = null;
   return new Promise((resolve) => (s ? s.close(() => resolve()) : resolve()));

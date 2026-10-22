@@ -65,7 +65,7 @@ const DEFAULT_PREFS: Preferences = {
     qrInFullscreen: false,
   },
   autoUpdate: true,
-  room: { open: false, name: '', join: null, mode: 'listen', volume: 0.7, clientId: '' },
+  room: { open: false, name: '', join: null, mode: 'listen', volume: 0.7, clientId: '', networks: '' },
   tabs: { radio: true, youtube: true, spotify: true, airplay: true, bluetooth: true },
   theme: 'standard',
 };
