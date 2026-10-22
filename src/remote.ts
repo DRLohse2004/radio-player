@@ -206,9 +206,12 @@ export function useRemote(
             if (!wishesRef.current.length) return done({ error: 'Die Queue ist leer.' });
             h.startQueue();
             return done();
-          case 'wish':
+          case 'wish': {
             if (!command.video) return done({ error: 'Kein Video.' });
-            return answer(addWish(command.video, client));
+            const error = addWish(command.video, client, command.now);
+            if (!error && command.now) h.startQueue();
+            return answer(error);
+          }
           case 'wishRemove': {
             const wish = wishesRef.current.find((w) => w.id === String(command.value));
             if (!wish) return done({ error: 'Nicht mehr in der Queue.' });

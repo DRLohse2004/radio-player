@@ -63,4 +63,12 @@ describe('Zugang zur Fernbedienung', () => {
     expect((await call('/api/join', { kind: 'radio', body: { clientId: 'r1', code: shown.code } })).status).toBe(403);
     expect((await call('/api/state', { key: ok.body.key, client: 'r1', kind: 'radio' })).status).toBe(200);
   });
+
+  it('sofort spielen aus der Suche: Gäste nur, wenn sie Sender wechseln dürfen', async () => {
+    setup('public', 'off');
+    remote.setState({ rules: { guestVolume: true, guestSkip: true, guestStations: false, maxWishes: 3, maxMinutes: 15 } });
+    const denied = await call('/api/wish', { key: 'master', client: 'c1', body: { id: 'dQw4w9WgXcQ', now: true } });
+    expect(denied).toMatchObject({ status: 403 });
+    remote.setState(null);
+  });
 });

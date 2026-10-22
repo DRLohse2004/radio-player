@@ -74,7 +74,7 @@ In den **Einstellungen** (Zahnrad) legen Sie den Ort für das Wetter fest und wi
 
 1. Oben auf **„YouTube“** wechseln.
 2. Links oben suchen – nach Songs, Interpreten oder Playlists – oder einen Link einfügen (aus der Adresszeile des Browsers oder in der YouTube-App über **„Teilen → Link kopieren“**).
-3. Beim Treffer **„+“** (bzw. **„Alle“** bei einer Playlist) setzt ihn in die **Queue**, **✓** legt ihn unter **„Gespeichert“** ab.
+3. Ein Klick auf den Treffer spielt ihn sofort (auch wenn gerade das Radio läuft). **„+“** (bzw. **„Alle“** bei einer Playlist) hängt ihn hinten an die **Queue**, **✓** legt ihn unter **„Gespeichert“** ab.
 
 **Die Queue** steht in der Mitte des Reiters. Ganz oben die Karte „Läuft gerade“ mit Bild und Fortschritt, darunter „Als Nächstes“. Ist ein Song zu Ende oder drückt man „Weiter“, rückt der nächste nach. Die Reihenfolge ändern Sie per Ziehen – wer den laufenden Eintrag nach unten zieht, startet damit den, der dann oben steht. Playlists stehen als ein Eintrag in der Queue und klappen per Klick ihre Songs auf; einzelne Songs lassen sich innerhalb der Playlist verschieben oder aus ihr heraus an eine beliebige Stelle der Queue ziehen. Wünsche vom Handy und aus dem Room landen in derselben Queue (hinten).
 

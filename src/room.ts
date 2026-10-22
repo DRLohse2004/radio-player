@@ -67,7 +67,10 @@ export function useRoom(prefs: RoomPrefs, ready: boolean, myName: string) {
     [call],
   );
   /** Einzelnes Video oder (whole) die ganze Playlist wünschen */
-  const wish = useCallback((id: string, whole = false) => call('/api/wish', whole ? { playlist: id } : { id }), [call]);
+  const wish = useCallback(
+    (id: string, whole = false, now = false) => call('/api/wish', { ...(whole ? { playlist: id } : { id }), now }),
+    [call],
+  );
   const login = useCallback(
     async (pin: string) => {
       const body = await call('/api/admin', { pin });

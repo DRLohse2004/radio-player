@@ -254,7 +254,7 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
           rights={{ edit: room.admin, play: may(rules?.guestStations) }}
           search={room.search}
           loadPlaylist={room.playlist}
-          onWish={(r, whole) => room.wish(r.id, whole).then(() => undefined)}
+          onWish={(r, whole, now) => room.wish(r.id, whole, now).then(() => undefined)}
           onSave={(url) => room.command('youtubeAdd', { url }).then(() => undefined)}
           onPlay={(item) => run('youtubeItem', item.id)}
           onQueue={(item) => run('youtubeQueue', item.id)}

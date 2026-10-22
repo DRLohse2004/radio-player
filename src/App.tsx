@@ -1313,14 +1313,16 @@ export default function App() {
             rights={{ edit: true, play: true }}
             search={api.youtubeSearch}
             loadPlaylist={api.youtubePlaylist}
-            onWish={async (r, whole) => {
+            onWish={async (r, whole, now) => {
               const error = remote.addWish(
                 whole
                   ? { id: r.id, title: r.title, channel: r.channel, thumbnail: r.thumbnail, duration: 0, count: 0 }
                   : { id: r.id, title: r.title, channel: r.channel, thumbnail: r.thumbnail, duration: r.duration },
                 hostClient,
+                now,
               );
               if (error) throw new Error(error);
+              if (now) setQueueWanted(true);
             }}
             onSave={addYoutube}
             onPlay={(item) => {

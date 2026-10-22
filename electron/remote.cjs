@@ -288,6 +288,8 @@ async function handle(req, res) {
 
   if (req.method === 'POST' && route === '/api/wish') {
     const body = await readBody(req).catch(() => ({}));
+    // Sofort spielen unterbricht, was läuft – wie einen Sender wählen
+    if (body.now && !allowed('youtubeItem', who)) return json(res, 403, { error: 'Das darf nur der Admin.' });
     const id = String(body.id ?? '');
     try {
       let video = searchCache.get(id);
@@ -298,7 +300,7 @@ async function handle(req, res) {
         video = { id: list.id, title: list.title, channel: list.channel, thumbnail: list.thumbnail, duration, count: list.entries.length, entries: list.entries };
       } else if (!video || Date.now() - video.at > 3600_000) video = await youtube.video(id);
       if (video.live) return json(res, 400, { error: 'Livestreams können nicht gewünscht werden.' });
-      const result = await request({ action: 'wish', video, client: who });
+      const result = await request({ action: 'wish', video, client: who, now: !!body.now });
       return json(res, result.error ? 400 : 200, result);
     } catch (err) {
       return json(res, 400, { error: err.message });

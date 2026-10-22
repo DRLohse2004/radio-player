@@ -214,6 +214,8 @@ export interface RemoteCommand {
   action: string;
   value?: unknown;
   video?: WishVideo;
+  /** Wunsch ganz oben einreihen und sofort spielen */
+  now?: boolean;
   client: { clientId: string; name: string; admin: boolean };
 }
 

@@ -17,8 +17,8 @@ interface Props {
   rights: YouTubeRights;
   search(query: string): Promise<YouTubeResult[]>;
   loadPlaylist(id: string): Promise<YouTubeResult[]>;
-  /** Suchtreffer hinten an die Queue (whole = ganze Playlist) */
-  onWish(result: YouTubeResult, whole: boolean): Promise<void>;
+  /** Suchtreffer in die Queue (whole = ganze Playlist, now = ganz oben und sofort spielen) */
+  onWish(result: YouTubeResult, whole: boolean, now: boolean): Promise<void>;
   /** Link unter „Gespeichert“ ablegen */
   onSave(url: string): Promise<void>;
   onPlay(item: YouTubeItem): void;
@@ -83,8 +83,8 @@ export function YouTubeSidebar(props: Props) {
       setBusy(false);
     }
   };
-  const wish = (r: YouTubeResult, whole = false) =>
-    props.onWish(r, whole).then(() => onMessage(`„${r.title}“ ist in der Queue.`), fail);
+  const wish = (r: YouTubeResult, whole = false, now = false) =>
+    props.onWish(r, whole, now).then(() => onMessage(now ? `„${r.title}“ spielt jetzt.` : `„${r.title}“ ist in der Queue.`), fail);
   const save = (r: YouTubeResult) => props.onSave(resultUrl(r)).then(() => onMessage(`„${r.title}“ ist gespeichert.`), fail);
   const toggleOpen = (id: string) => {
     if (open?.id === id) return setOpen(null);
@@ -106,9 +106,9 @@ export function YouTubeSidebar(props: Props) {
     <li key={r.id} className="station-item yt-result">
       <button
         className="station-select"
-        disabled={r.live}
-        onClick={() => (r.kind === 'playlist' ? toggleOpen(r.id) : wish(r))}
-        title={r.kind === 'playlist' ? 'Songs zeigen' : 'Hinten an die Queue'}
+        disabled={r.live || (r.kind !== 'playlist' && !rights.play)}
+        onClick={() => (r.kind === 'playlist' ? toggleOpen(r.id) : wish(r, false, true))}
+        title={r.kind === 'playlist' ? 'Songs zeigen' : 'Jetzt spielen (ganz oben in die Queue)'}
       >
         {!small && <span className="room-thumb">{r.thumbnail && <img src={r.thumbnail} alt="" />}</span>}
         <span className="station-name">
