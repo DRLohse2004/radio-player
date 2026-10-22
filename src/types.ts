@@ -47,6 +47,8 @@ export type SourceTab = 'radio' | 'youtube' | 'spotify' | 'airplay' | 'bluetooth
 export interface RoomPrefs {
   /** dieses Radio ist Host und lässt andere Radios beitreten */
   open: boolean;
+  /** Sicher: andere Radios brauchen die Zugangs-PIN oder einen Einmalcode */
+  secure: boolean;
   /** Name, unter dem andere Radios den Room finden (leer = Rechnername) */
   name: string;
   /** beigetretener Room (null = eigenständig) */
@@ -68,6 +70,7 @@ export interface RoomHost {
   port: number;
   url: string;
   open: boolean;
+  secure?: boolean;
   key: string;
   version: string;
   listeners: number;
@@ -89,6 +92,7 @@ export interface HostState {
   album?: string | null;
   cover?: string | null;
   wishedBy?: string | null;
+  wishPlaylist?: boolean;
   live?: boolean;
   volume?: number;
   volumeEnabled?: boolean;
@@ -132,8 +136,14 @@ export interface UpdateState {
   url: string | null;
 }
 
+export type AccessMode = 'off' | 'public' | 'secure';
+
 export interface RemotePrefs {
   enabled: boolean;
+  /** Sicher: Handys brauchen die Zugangs-PIN oder einen Einmalcode vom Radio (sonst öffentlich) */
+  secure: boolean;
+  /** Zugangs-PIN für den sicheren Modus (Handys und Rooms) */
+  joinPin: string;
   /** Zugangsschlüssel im QR-Code */
   key: string;
   /** Admin-PIN (leer = kein Admin-Zugang vom Handy) */
@@ -161,6 +171,8 @@ export interface Wish {
   clientId: string;
   /** Ganze Playlist (videoId ist dann die Playlist-ID): Anzahl Songs */
   count?: number;
+  /** Link eines gespeicherten Eintrags des Hosts (sonst aus videoId gebildet) */
+  url?: string;
 }
 
 export interface RemoteClient {
@@ -180,11 +192,22 @@ export interface RemoteInfo {
   error?: string;
 }
 
+/** Was auf die Queue soll: Video, Playlist (count) oder gespeicherter Eintrag des Hosts (url) */
+export interface WishVideo {
+  id: string;
+  title: string;
+  channel: string | null;
+  duration: number;
+  thumbnail: string | null;
+  count?: number;
+  url?: string;
+}
+
 export interface RemoteCommand {
   id: number;
   action: string;
   value?: unknown;
-  video?: { id: string; title: string; channel: string | null; duration: number; thumbnail: string | null; count?: number };
+  video?: WishVideo;
   client: { clientId: string; name: string; admin: boolean };
 }
 
@@ -379,18 +402,21 @@ export interface RadioApi {
   updateInstall(): Promise<boolean>;
   updateSetEnabled(enabled: boolean): Promise<void>;
   onUpdateState(callback: (state: UpdateState) => void): () => void;
-  remoteStart(options: { key: string; pin: string; roomOpen: boolean; roomName: string }): Promise<RemoteInfo>;
+  remoteStart(options: { key: string; pin: string; roomName: string; phone: AccessMode; room: AccessMode; joinPin: string }): Promise<RemoteInfo>;
   remoteStop(): Promise<void>;
   remoteInfo(): Promise<RemoteInfo>;
   remoteState(state: unknown): void;
   remoteReply(id: number, result: { ok?: boolean; error?: string }): void;
   onRemoteCommand(callback: (command: RemoteCommand) => void): () => void;
   onRemoteClients(callback: (clients: RemoteClient[]) => void): () => void;
+  /** Einmalcode, den der Host groß zeigt (null = ausblenden) */
+  onRemoteCode(callback: (code: { code: string; name: string; kind: 'phone' | 'radio' } | null) => void): () => void;
   roomScan(networks?: string): Promise<RoomHost[]>;
   roomProbe(address: string): Promise<RoomHost | null>;
   roomConnect(options: { url: string; key: string; clientId: string; name: string }): Promise<void>;
   roomDisconnect(): Promise<void>;
   roomRequest(options: { method?: 'GET' | 'POST'; path: string; body?: unknown; admin?: string }): Promise<{ status: number; body: any }>;
+  roomJoin(options: { url: string; clientId: string; name: string; pin?: string; code?: string; request?: boolean }): Promise<{ status: number; body: any }>;
   onRoomEvent(callback: (event: RoomEvent) => void): () => void;
   youtubeInfo(url: string): Promise<YouTubeInfo>;
   youtubeResolve(url: string): Promise<YouTubeStream>;

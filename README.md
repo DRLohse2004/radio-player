@@ -120,7 +120,10 @@ Sobald das Handy verbunden ist, wechselt das Radio automatisch in diesen Reiter.
 
 ### Fernbedienung übers Handy
 
-1. Oben rechts auf das **Handy-Symbol** klicken und **„Fernbedienung einschalten“**.
+1. Oben rechts auf das **Handy-Symbol** klicken und den Zugang wählen:
+   - **Aus** – niemand kann sich verbinden.
+   - **Öffentlich** – wer den QR-Code scannt, ist drin.
+   - **Sicher** – das Handy braucht zusätzlich die **Zugangs-PIN** oder einen **Einmalcode**: Beim Verbinden auf „Code am Radio anzeigen“ tippen, dann erscheint der Code groß auf dem Radio und verschwindet wieder, sobald das Handy verbunden ist. Ein Handy muss das nur einmal machen.
 2. Fragt Windows nach einer **Firewall-Freigabe** für „Radio“, für Ihr Netzwerk erlauben.
 3. Den **QR-Code** mit dem Handy scannen – die Fernbedienung öffnet sich im Browser. Über „Zum Home-Bildschirm“ wird daraus eine App.
 
@@ -128,15 +131,15 @@ Am Handy gibt es:
 
 - **Steuerung:** Pause/Weiter, vor und zurück, Lautstärke – und anzeigen, was gerade läuft.
 - **Sender:** antippen, und er spielt.
-- **Wünsche:** Song, Interpret oder Playlist suchen und mit **„+“** auf die Wunschliste setzen. Eine Playlist klappt beim Antippen ihre Songs zum einzelnen Wünschen auf; **„Alle“** setzt die ganze Playlist als einen Wunsch auf die Liste – sie läuft dann komplett, bevor der nächste Wunsch kommt. Wünsche spielen nach dem aktuellen YouTube-Titel; läuft gar nichts, startet der Wunsch sofort; läuft das Radio, startet „Jetzt spielen“ die Wunschliste.
+- **Queue:** Song, Interpret, Playlist oder einen YouTube-Link suchen und mit **„+“** in die Queue setzen. Eine Playlist klappt beim Antippen ihre Songs zum einzelnen Wünschen auf; **„Alle“** setzt die ganze Playlist als einen Wunsch auf die Liste – sie läuft dann komplett, bevor der nächste Wunsch kommt. Der Admin kann sie mit **„Playlist beenden“** abbrechen und zum nächsten Wunsch springen. Wünsche spielen nach dem aktuellen YouTube-Titel; läuft gar nichts, startet der Wunsch sofort; läuft das Radio, startet „Jetzt spielen“ die Wunschliste.
 
-Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren. Am PC lässt sich die Wunschliste im Reiter YouTube jederzeit mit der Maus umsortieren. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
+Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren. Am PC steht die Queue im Reiter YouTube: Dort lässt sie sich mit der Maus umsortieren, Playlists darin klappen per Klick ihre Songs auf, und jeder gespeicherte Eintrag hat neben „Abspielen“ (Klick auf den Eintrag) ein **„+“**, das ihn hinten an die Queue hängt. Wünsche vom Handy, aus dem Room und vom PC landen alle in dieser einen Queue. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
 
 > Handy und PC müssen im selben Netzwerk sein. Die Fernbedienung nutzt Port 80 – der ist auch in abgeschotteten WLANs meist offen. „Neuen QR-Code erzeugen“ sperrt alle bisherigen Handys aus.
 
 ### Rooms: mehrere Radios zusammen
 
-Ein Radio ist der **Host** – meist der PC, an dem die Lautsprecher hängen. Dort oben rechts auf das **Room-Symbol** klicken und **„Andere Radios dürfen beitreten“** einschalten.
+Ein Radio ist der **Host** – meist der PC, an dem die Lautsprecher hängen. Dort oben rechts auf das **Room-Symbol** klicken und den Zugang wählen: **Aus**, **Öffentlich** (jedes Radio im Netz darf beitreten) oder **Sicher** (beitreten nur mit der Zugangs-PIN oder dem Einmalcode, der beim Beitreten groß auf dem Host erscheint).
 
 An jedem anderen Radio ebenfalls das Room-Symbol öffnen: Das Radio sucht im Netz und zeigt gefundene Rooms. Dann wählen:
 

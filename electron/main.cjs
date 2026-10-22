@@ -606,6 +606,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('room:connect', (_event, options) => room.connect(options ?? {}));
     ipcMain.handle('room:disconnect', () => room.disconnect());
     ipcMain.handle('room:request', (_event, options) => room.request(options ?? {}));
+    ipcMain.handle('room:join', (_event, options) => room.joinHost(options ?? {}));
     updater.start((channel, payload) => sendToRenderer(channel, payload), false);
     ipcMain.handle('update:state', () => updater.getState());
     ipcMain.handle('update:check', () => updater.check());

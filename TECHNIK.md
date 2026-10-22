@@ -121,7 +121,12 @@ abschotten, lassen oft nur diesen Port durch. Die App bleibt die Quelle der Wahr
   Hauptprozess, der ihn per Server-Sent Events (`/api/events`) an alle Handys verteilt.
 - Befehle (`/api/command`, `/api/wish`) gehen als `remote:command` an die Oberfläche, die mit `remote:reply` antwortet.
   Die Wunsch-Regeln (pro Person, Höchstlänge, doppelte Songs) prüft `src/remote.ts`, die Gast-Rechte der Server.
-- Zugang: Schlüssel `k` aus dem QR-Code (Einstellung `remote.key`, „Neuen QR-Code erzeugen“ wechselt ihn). Admin per
+- Zugang je Art (Handy: `remote.enabled`/`remote.secure`, Radio: `room.open`/`room.secure`) – `off`, `public` oder `secure`.
+  Öffentlich genügt der Schlüssel `k` aus dem QR-Code. Sicher tauscht `POST /api/join` die Zugangs-PIN (`remote.joinPin`) oder
+  einen Einmalcode (6 Ziffern, 2 Minuten, nur für die anfragende Gerätekennung; der Host zeigt ihn über `remote:code`)
+  gegen einen Geräteschlüssel `HMAC(remote.key, clientId)` – ohne Speicher prüfbar und gültig, bis der QR-Schlüssel wechselt.
+  Fehlversuche zählen zusammen mit der Admin-PIN (max. 5 pro Minute und IP). Test: `test/remote-access.test.ts`.
+- Schlüssel `k` aus dem QR-Code: Einstellung `remote.key`, „Neuen QR-Code erzeugen“ wechselt ihn und sperrt alle Geräte aus. Admin per
   PIN (`/api/admin`, max. 5 Versuche pro Minute und IP) – das Token gilt bis zum Neustart oder bis die PIN wechselt.
 - Suche: `yt-dlp ytsearch12:` plus bis zu 4 Playlists (YouTube-Suchseite mit Filter `sp=EgIQAw==`); Video-Treffer werden
   zwischengespeichert, damit ein Wunsch ohne zweiten Abruf sofort steht. `/api/playlist?id=` liefert die Songs einer Playlist,
@@ -136,8 +141,8 @@ Ein Room ist die Fernbedienung für andere Radios – dieselbe HTTP-Schnittstell
 anspricht. So kommt sie auch durch Netze, in denen nur Port 80 offen ist.
 
 - **Host:** `room.open` startet den Webserver der Fernbedienung (auch ohne Handy-Fernbedienung). `GET /api/room`
-  (ohne Schlüssel) liefert `{ app: 'radio', name, version, open, listeners }` und – nur wenn der Room freigegeben ist –
-  den Schlüssel. Radios melden sich mit `x-kind: radio` und erscheinen getrennt von Handys.
+  (ohne Schlüssel) liefert `{ app: 'radio', name, version, open, secure, listeners }` und – nur wenn der Room öffentlich ist –
+  den Schlüssel; ist er gesichert, tritt das Radio per `/api/join` (PIN oder Einmalcode) bei. Radios melden sich mit `x-kind: radio` und erscheinen getrennt von Handys.
 - **Finden:** `electron/room.cjs` fragt im eigenen /24-Netz jeder Netzwerkkarte `/api/room` auf Port 80 und 8080 ab
   (160 parallel, 0,8 s Zeitlimit, ca. 3 s). Parallel schickt `electron/discovery.cjs` die UDP-Frage `radio-room?` an
   Port 47811 – an die Broadcast-Adresse jedes eigenen Netzes, an 255.255.255.255 und an die unter „Auch in diesen

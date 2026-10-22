@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { isDesktop } from '../api';
-import { newRemoteKey } from '../remote';
+import { accessOf, newRemoteKey } from '../remote';
 import type { RemoteClient, RemoteInfo, RemotePrefs } from '../types';
+import { AccessChoice } from './AccessChoice';
 import { CloseIcon, PhoneIcon } from './Icons';
 
 interface Props {
@@ -10,6 +11,31 @@ interface Props {
   clients: RemoteClient[];
   onChange(prefs: RemotePrefs): void;
   onClose(): void;
+}
+
+/** PIN-Feld: übernimmt erst beim Verlassen (sonst startet der Server bei jeder Ziffer neu) */
+function PinField({ label, value, hint, onChange }: { label: string; value: string; hint: string; onChange(pin: string): void }) {
+  const [pin, setPin] = useState(value);
+  useEffect(() => setPin(value), [value]);
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input
+        value={pin}
+        inputMode="numeric"
+        maxLength={8}
+        placeholder="z. B. 2468"
+        onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+        onBlur={() => {
+          const next = pin.length >= 4 ? pin : '';
+          setPin(next);
+          if (next !== value) onChange(next);
+        }}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      <small>{hint}</small>
+    </label>
+  );
 }
 
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange(v: boolean): void; label: string; hint?: string }) {
@@ -26,9 +52,6 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
 
 export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props) {
   const set = (patch: Partial<RemotePrefs>) => onChange({ ...prefs, ...patch });
-  // PIN erst beim Verlassen übernehmen (sonst startet der Server bei jeder Ziffer neu)
-  const [pin, setPin] = useState(prefs.pin);
-  useEffect(() => setPin(prefs.pin), [prefs.pin]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -36,7 +59,8 @@ export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props)
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const enable = (enabled: boolean) => set(enabled && !prefs.key ? { enabled, key: newRemoteKey() } : { enabled });
+  const enable = (enabled: boolean, secure: boolean) =>
+    set(enabled && !prefs.key ? { enabled, secure, key: newRemoteKey() } : { enabled, secure: enabled ? secure : prefs.secure });
   const main = info.addresses?.[0];
   const online = clients.filter((c) => c.online);
 
@@ -51,12 +75,16 @@ export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props)
         </header>
 
         <div className="modal-body">
-          <Toggle
-            checked={prefs.enabled}
-            onChange={enable}
-            label="Fernbedienung einschalten"
-            hint="Kollegen steuern das Radio im Browser ihres Handys und wünschen sich Songs von YouTube – ohne App."
-          />
+          <p className="muted small">Kollegen steuern das Radio im Browser ihres Handys und wünschen sich Songs von YouTube – ohne App.</p>
+          <AccessChoice value={accessOf(prefs.enabled, prefs.secure)} onChange={(mode) => enable(mode !== 'off', mode === 'secure')} />
+          {prefs.enabled && prefs.secure && (
+            <PinField
+              label="Zugangs-PIN (4–8 Ziffern)"
+              value={prefs.joinPin}
+              hint="Gilt für Handys und – wenn der Room gesichert ist – für andere Radios. Leer = nur per Einmalcode."
+              onChange={(joinPin) => set({ joinPin })}
+            />
+          )}
           {!isDesktop && <p className="muted small">Nur in der Desktop-App verfügbar.</p>}
 
           {prefs.enabled && (
@@ -98,23 +126,12 @@ export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props)
               )}
 
               <h3 className="remote-section">Admin</h3>
-              <label className="field">
-                <span>Admin-PIN (4–8 Ziffern)</span>
-                <input
-                  value={pin}
-                  inputMode="numeric"
-                  maxLength={8}
-                  placeholder="z. B. 2468"
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                  onBlur={() => {
-                    const value = pin.length >= 4 ? pin : '';
-                    setPin(value);
-                    if (value !== prefs.pin) set({ pin: value });
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                />
-                <small>Mit der PIN darf man am Handy alles: fremde Wünsche löschen, sortieren, die Liste leeren. Leer = kein Admin am Handy.</small>
-              </label>
+              <PinField
+                label="Admin-PIN (4–8 Ziffern)"
+                value={prefs.pin}
+                hint="Mit der PIN darf man am Handy alles: fremde Wünsche löschen, sortieren, die Liste leeren. Leer = kein Admin am Handy."
+                onChange={(pin) => set({ pin })}
+              />
 
               <h3 className="remote-section">Was dürfen alle?</h3>
               <Toggle checked={prefs.guestVolume} onChange={(v) => set({ guestVolume: v })} label="Lautstärke ändern" />

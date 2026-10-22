@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, isDesktop } from '../api';
-import { useDragSort } from '../hooks';
 import type { YouTubeState } from '../youtube';
 import type { Wish, YouTubeEntry, YouTubeItem } from '../types';
-import { CheckIcon, CloseIcon, EditIcon, GripIcon, PlusIcon, TrashIcon, YouTubeIcon } from './Icons';
+import { wishToItem } from '../remote';
+import { CheckIcon, CloseIcon, EditIcon, PlusIcon, TrashIcon, YouTubeIcon } from './Icons';
+import { Queue } from './Queue';
 
 interface Props {
   items: YouTubeItem[];
@@ -14,6 +15,8 @@ interface Props {
   onMoveWish(id: string, toIndex: number): void;
   onStartWishes(): void;
   onPlay(item: YouTubeItem, index?: number): void;
+  /** Gespeicherten Eintrag hinten an die Queue – liefert eine Fehlermeldung oder null */
+  onQueue(item: YouTubeItem): string | null;
   onAdd(url: string): Promise<void>;
   onRename(id: string, title: string): void;
   onDelete(id: string): void;
@@ -38,14 +41,13 @@ function subtitle(item: YouTubeItem) {
   return parts.join(' · ');
 }
 
-export function YouTubeSidebar({ items, state, entriesFor, wishes, onRemoveWish, onMoveWish, onStartWishes, onPlay, onAdd, onRename, onDelete, onMove, onClose }: Props) {
+export function YouTubeSidebar({ items, state, entriesFor, wishes, onRemoveWish, onMoveWish, onStartWishes, onPlay, onQueue, onAdd, onRename, onDelete, onMove, onClose }: Props) {
   const [url, setUrl] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const wishDrag = useDragSort(wishes.length, onMoveWish);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [version, setVersion] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -127,40 +129,34 @@ export function YouTubeSidebar({ items, state, entriesFor, wishes, onRemoveWish,
       {adding && <p className="yt-add-hint">Lade Infos von YouTube …</p>}
       {addError && <p className="yt-add-hint error-text">{addError}</p>}
 
-      {wishes.length > 0 && (
-        <div className="yt-wishes">
-          <div className="sidebar-label flush yt-wishes-head">
-            <span>Wünsche ({wishes.length})</span>
-            {!state.now?.item.wishedBy && (
-              <button className="mini" onClick={onStartWishes} title="Wunschliste jetzt abspielen">
-                Jetzt spielen
-              </button>
-            )}
-          </div>
-          <ol className="yt-queue wish-list">
-            {wishes.map((wish, i) => (
-              <li key={wish.id} {...wishDrag(wish.id, i)}>
-                <div className="wish-row">
-                  <span className="drag-handle" title="Ziehen zum Sortieren">
-                    <GripIcon size={12} />
-                  </span>
-                  <span className="yt-queue-no">{i + 1}</span>
-                  <span className="yt-queue-title" title={wish.title}>
-                    {wish.title}
-                    <small>
-                      {wish.by}
-                      {wish.count !== undefined && ` · Playlist, ${wish.count} Songs`}
-                    </small>
-                  </span>
-                  <button className="icon-button tiny" onClick={() => onRemoveWish(wish.id)} title="Wunsch entfernen">
-                    <CloseIcon size={12} />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ol>
+      <div className="yt-wishes">
+        <div className="sidebar-label flush yt-wishes-head">
+          <span>Queue{wishes.length ? ` (${wishes.length})` : ''}</span>
+          {wishes.length > 0 && (!now?.item.wishedBy || now.item.kind === 'playlist') && (
+            <button className="mini" onClick={onStartWishes} title="Queue jetzt abspielen">
+              {now?.item.wishedBy ? 'Playlist beenden' : 'Jetzt spielen'}
+            </button>
+          )}
         </div>
-      )}
+        {now?.item.wishedBy && (
+          <p className="queue-now">
+            ▶ {now.item.title}
+            {now.entries.length > 1 && <small> · Titel {now.index + 1} von {now.entries.length}</small>}
+          </p>
+        )}
+        {wishes.length === 0 ? (
+          <p className="side-note">Leer – Wünsche vom Handy oder Room und „+“ bei gespeicherten Einträgen landen hier.</p>
+        ) : (
+          <Queue
+            wishes={wishes}
+            canMove
+            canRemove={() => true}
+            onMove={onMoveWish}
+            onRemove={onRemoveWish}
+            loadEntries={async (w) => (await api.youtubeInfo(wishToItem(w).url)).entries}
+          />
+        )}
+      </div>
 
       <div className="sidebar-label">Gespeichert</div>
 
@@ -266,6 +262,15 @@ export function YouTubeSidebar({ items, state, entriesFor, wishes, onRemoveWish,
                   ) : (
                     renaming?.id !== item.id && (
                       <div className="station-actions">
+                        {item.kind !== 'live' && (
+                          <button
+                            className="icon-button"
+                            onClick={() => setAddError(onQueue(item))}
+                            title="Hinten an die Queue"
+                          >
+                            <PlusIcon size={16} />
+                          </button>
+                        )}
                         <button
                           className="icon-button"
                           onClick={() => setRenaming({ id: item.id, title: item.title })}

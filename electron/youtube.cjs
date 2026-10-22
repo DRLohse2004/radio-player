@@ -140,7 +140,14 @@ async function resolve(url) {
 async function search(query) {
   const q = String(query).trim().slice(0, 200);
   if (!q) return [];
-  if (/^https?:\/\//i.test(q)) return searchVideos(q);
+  if (/^https?:\/\//i.test(q)) {
+    // Eingefügter Playlist-Link: als eine Playlist anbieten (aufklappen oder ganz wünschen)
+    const list = new URL(q).searchParams.get('list');
+    if (!list || !PLAYLIST_ID.test(list)) return searchVideos(q);
+    const p = await playlist(list).catch(() => null); // z. B. YouTube-Mixe: dann nur das Video
+    if (!p) return searchVideos(q);
+    return [{ id: p.id, kind: 'playlist', title: p.title, channel: p.channel, duration: 0, thumbnail: p.thumbnail }];
+  }
   const [videos, playlists] = await Promise.all([searchVideos(`ytsearch12:${q}`), searchPlaylists(q).catch(() => [])]);
   return [...videos, ...playlists];
 }

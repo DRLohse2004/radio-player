@@ -49,6 +49,7 @@ async function probe(address, port, timeout = 1500) {
     port,
     url: baseUrl(address, port),
     open: !!info.open,
+    secure: !!info.secure,
     key: info.open ? String(info.key || '') : '',
     version: String(info.version || ''),
     listeners: Number(info.listeners) || 0,
@@ -204,17 +205,27 @@ function disconnect() {
 function request({ method = 'GET', path = '/', body, admin } = {}) {
   if (!link) return Promise.resolve({ status: 0, body: { error: 'Nicht verbunden.' } });
   if (!/^\/api\/(command|search|playlist|wish|admin|state)(\?|$)/.test(path)) return Promise.resolve({ status: 400, body: { error: 'Unbekannt' } });
+  return httpJson(`${link.base}${path}`, method, body, headers(admin ? { 'x-admin': String(admin) } : {}));
+}
+
+/** Gesicherten Room betreten: PIN oder Einmalcode schicken bzw. Code anfordern – liefert den Geräteschlüssel */
+function joinHost({ url, clientId, name, pin, code, request: ask } = {}) {
+  if (!/^https?:\/\//.test(String(url))) return Promise.resolve({ status: 400, body: { error: 'Ungültige Adresse.' } });
+  return httpJson(`${String(url).replace(/\/+$/, '')}/api/join`, 'POST', { clientId, name, pin, code, request: ask }, { 'x-kind': 'radio' });
+}
+
+function httpJson(target, method, body, extraHeaders) {
   const payload = body === undefined ? null : Buffer.from(JSON.stringify(body));
   return new Promise((resolve) => {
     const req = http.request(
-      `${link.base}${path}`,
+      target,
       {
         method,
         timeout: 20_000,
-        headers: headers({
-          ...(admin ? { 'x-admin': String(admin) } : {}),
+        headers: {
+          ...extraHeaders,
           ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {}),
-        }),
+        },
       },
       (res) => {
         let data = '';
@@ -244,6 +255,7 @@ module.exports = {
   connect,
   disconnect,
   request,
+  joinHost,
   setSender: (fn) => {
     send = fn;
   },

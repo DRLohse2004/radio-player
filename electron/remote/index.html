@@ -98,9 +98,12 @@
   .icon-btn.wide { width: auto; padding: 0 12px; font-size: 15px; font-weight: 600; }
   .list.songs { margin: 6px 0 0 18px; }
   .handle { width: 28px; flex-shrink: 0; text-align: center; font-size: 22px; color: var(--faint); cursor: grab; touch-action: none; user-select: none; }
-  .item.dragging { opacity: .5; }
-  .item.drop-before { box-shadow: 0 -3px 0 var(--accent); }
-  .item.drop-after { box-shadow: 0 3px 0 var(--accent); }
+  .qrow { border-radius: 14px; }
+  .qrow.dragging { opacity: .5; }
+  .qrow.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+  .qrow.drop-after { box-shadow: 0 3px 0 var(--accent); }
+  .songs-mini { margin: 4px 0 6px 46px; padding: 0; font-size: 13px; color: var(--muted); }
+  .songs-mini li { padding: 2px 0; }
   .no { width: 22px; text-align: center; color: var(--faint); font-variant-numeric: tabular-nums; }
   .spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: #fff; animation: spin .8s linear infinite; margin: 20px auto; }
   .icon-btn .spinner { margin: 0; width: 18px; height: 18px; }
@@ -165,21 +168,21 @@
     </div>
 
     <nav class="tabs">
-      <button data-tab="wishes" class="active">Wünsche <span class="count" id="wishCount" hidden></span></button>
+      <button data-tab="wishes" class="active">Queue <span class="count" id="wishCount" hidden></span></button>
       <button data-tab="stations">Sender</button>
       <button data-tab="admin" id="adminTab">Admin</button>
     </nav>
 
     <section data-panel="wishes">
       <form class="search" id="searchForm">
-        <input id="searchInput" type="search" placeholder="Song, Interpret oder Playlist suchen …" autocomplete="off" enterkeyhint="search">
+        <input id="searchInput" type="search" placeholder="Song, Playlist oder YouTube-Link …" autocomplete="off" enterkeyhint="search">
         <button class="btn" type="submit">Suchen</button>
       </form>
       <p class="hint" id="rulesHint"></p>
       <div id="results"></div>
-      <div class="section-title"><span>Wunschliste</span><button class="btn ghost small" id="wishStart" hidden>Jetzt spielen</button></div>
+      <div class="section-title"><span>Queue</span><button class="btn ghost small" id="wishStart" hidden>Jetzt spielen</button></div>
       <ul class="list" id="wishList"></ul>
-      <p class="hint" id="wishEmpty">Noch keine Wünsche. Such oben nach einem Song!</p>
+      <p class="hint" id="wishEmpty">Die Queue ist leer. Such oben nach einem Song oder einer Playlist!</p>
     </section>
 
     <section data-panel="stations" hidden>
@@ -195,14 +198,26 @@
         </form>
       </div>
       <div id="adminArea" hidden>
-        <p class="hint"><span class="admin-badge">✓ Als Admin angemeldet.</span> In der Wunschliste kannst du jetzt alle Wünsche löschen und am Griff ≡ verschieben.</p>
+        <p class="hint"><span class="admin-badge">✓ Als Admin angemeldet.</span> In der Queue kannst du jetzt alle Einträge löschen und am Griff ≡ verschieben.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn ghost small" id="clearWishes">Wunschliste leeren</button>
+          <button class="btn ghost small" id="clearWishes">Queue leeren</button>
           <button class="btn ghost small" id="adminLogout">Abmelden</button>
         </div>
       </div>
     </section>
   </main>
+</div>
+
+<div class="overlay" id="joinDialog" hidden>
+  <form class="card" id="joinForm">
+    <h2>Radio ist gesichert</h2>
+    <p>Gib die Zugangs-PIN ein – oder lass dir einen Code groß am Radio anzeigen.</p>
+    <input id="joinInput" inputmode="numeric" maxlength="8" placeholder="PIN oder Code" autocomplete="off">
+    <div class="row">
+      <button type="button" class="btn ghost" id="joinCode">Code am Radio anzeigen</button>
+      <button type="submit" class="btn">Verbinden</button>
+    </div>
+  </form>
 </div>
 
 <div class="overlay" id="nameDialog" hidden>
@@ -229,7 +244,7 @@
   // Zugangsschlüssel aus dem QR-Code merken, damit die Seite auch als Lesezeichen/Startbildschirm-App klappt
   const params = new URLSearchParams(location.search);
   if (params.get('k')) { store.set('radio.key', params.get('k')); history.replaceState(null, '', '/'); }
-  const key = store.get('radio.key') || '';
+  let key = store.get('radio.key') || '';
   let clientId = store.get('radio.client');
   if (!clientId) { clientId = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('radio.client', clientId); }
   let name = store.get('radio.name') || '';
@@ -269,7 +284,8 @@
   async function api(path, body) {
     const res = await fetch(path, body === undefined ? { headers: headers() } : { method: 'POST', headers: headers(), body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 403 && /Zugang/.test(data.error || '')) block(data.error);
+    if (res.status === 403 && data.join) showJoin();
+    else if (res.status === 403 && /Zugang|niemanden/.test(data.error || '')) block(data.error);
     // Admin-Anmeldung verfällt, wenn das Radio neu startet oder die PIN geändert wird
     if (res.status === 403 && /Admin/.test(data.error || '') && adminToken) {
       adminToken = '';
@@ -310,11 +326,41 @@
   });
   $('whoBtn').addEventListener('click', askName);
 
+  // --- Gesichertes Radio: PIN oder Einmalcode gegen einen eigenen Schlüssel tauschen ---
+  function showJoin() {
+    events?.close();
+    $('joinDialog').hidden = false;
+    setTimeout(() => $('joinInput').focus(), 50);
+  }
+  $('joinCode').addEventListener('click', async () => {
+    try {
+      await api('/api/join', { clientId, name: name || 'Gast', request: true });
+      toast('Der Code steht jetzt groß am Radio.');
+      $('joinInput').focus();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+  $('joinForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const value = $('joinInput').value.replace(/[^0-9]/g, '');
+    if (!value) return;
+    try {
+      const data = await api('/api/join', { clientId, name: name || 'Gast', pin: value, code: value });
+      key = data.key;
+      store.set('radio.key', key);
+      $('joinInput').value = '';
+      $('joinDialog').hidden = true;
+      connect();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
+
   // --- Live-Verbindung ---
   let events = null;
   function connect() {
     events?.close();
-    if (!key) return block();
     const q = new URLSearchParams({ k: key, c: clientId, n: name || 'Gast' });
     events = new EventSource(`/api/events?${q}`);
     events.addEventListener('state', (e) => { state = JSON.parse(e.data); render(); });
@@ -323,7 +369,12 @@
       $('dot').className = 'dot off';
       $('connText').textContent = 'Getrennt …';
       // Schlüssel ungültig? Einmal nachfragen, sonst versucht EventSource es selbst erneut
-      fetch('/api/state', { headers: headers() }).then((r) => { if (r.status === 403) block('Zugang abgelaufen – bitte den QR-Code am Radio neu scannen.'); }).catch(() => {});
+      fetch('/api/state', { headers: headers() }).then(async (r) => {
+        if (r.status !== 403) return;
+        const data = await r.json().catch(() => ({}));
+        if (data.join) showJoin();
+        else block(data.error || 'Zugang abgelaufen – bitte den QR-Code am Radio neu scannen.');
+      }).catch(() => {});
     };
   }
 
@@ -413,27 +464,52 @@
     handle.addEventListener('pointercancel', up);
   }
 
+  // Playlist in der Queue antippen: Songs aufklappen (nur zum Ansehen)
+  let openWish = null;
+  const wishSongs = new Map();
+  async function toggleWish(w) {
+    openWish = openWish === w.id ? null : w.id;
+    renderWishes();
+    if (!openWish || wishSongs.has(w.id)) return;
+    const list = w.url ? new URL(w.url).searchParams.get('list') : w.videoId;
+    try {
+      const { entries } = await api(`/api/playlist?id=${encodeURIComponent(list || '')}`);
+      wishSongs.set(w.id, entries);
+    } catch (err) {
+      openWish = null;
+      toast(err.message, true);
+    }
+    renderWishes();
+  }
+
   function renderWishes() {
     if (dragging) return; // Live-Updates erst nach dem Ziehen zeichnen
     const list = $('wishList');
     const admin = !!adminToken;
     list.replaceChildren(
       ...state.wishes.map((w, i) => {
-        const li = el('li', { class: 'item' },
-          admin ? el('span', { class: 'handle', title: 'Ziehen zum Sortieren', onpointerdown: (e) => startDrag(e, li, w.id) }, '≡') : el('span', { class: 'no' }, i + 1),
-          el('div', { class: 'thumb', style: `background-image:${cssUrl(w.thumbnail)}` }, w.duration ? el('span', {}, fmt(w.duration)) : null),
-          el('div', { class: 'item-text' },
-            el('div', { class: 'item-title' }, w.title),
-            el('div', { class: 'item-sub' }, `von ${w.by}${w.count !== undefined ? ` · Playlist, ${w.count} Songs` : ''}`)),
-          admin || w.clientId === clientId
-            ? el('button', { class: 'icon-btn', title: 'Wunsch löschen', onclick: () => command('wishRemove', w.id).then(() => addedIds.delete(w.videoId)) }, '×')
+        const playlist = w.count !== undefined;
+        const open = openWish === w.id;
+        const li = el('li', { class: 'qrow' },
+          el('div', { class: 'item' },
+            admin ? el('span', { class: 'handle', title: 'Ziehen zum Sortieren', onpointerdown: (e) => startDrag(e, li, w.id) }, '≡') : el('span', { class: 'no' }, i + 1),
+            el('div', { class: 'thumb', style: `background-image:${cssUrl(w.thumbnail)}` }, w.duration ? el('span', {}, fmt(w.duration)) : null),
+            el('div', { class: 'item-text', onclick: playlist ? () => toggleWish(w) : null },
+              el('div', { class: 'item-title' }, w.title),
+              el('div', { class: 'item-sub' }, `von ${w.by}${playlist ? ` · ${open ? '▾' : '▸'} Playlist${w.count ? `, ${w.count} Songs` : ''}` : ''}`)),
+            admin || w.clientId === clientId
+              ? el('button', { class: 'icon-btn', title: 'Aus der Queue löschen', onclick: () => command('wishRemove', w.id).then(() => addedIds.delete(w.videoId)) }, '×')
+              : null),
+          open
+            ? el('ol', { class: 'songs-mini' }, ...(wishSongs.get(w.id) ?? [{ title: 'Lade Songs …' }]).map((e) => el('li', {}, e.title)))
             : null);
         return li;
       }),
     );
     $('wishEmpty').hidden = state.wishes.length > 0;
-    const playingWish = state.source === 'youtube' && state.wishedBy;
+    const playingWish = state.source === 'youtube' && state.wishedBy && !(state.wishPlaylist && admin);
     $('wishStart').hidden = !state.wishes.length || playingWish || !(admin || state.rules.guestSkip);
+    $('wishStart').textContent = state.wishPlaylist ? 'Playlist beenden' : 'Jetzt spielen';
   }
 
   function renderStations() {
@@ -483,7 +559,7 @@
         addedIds.add(id);
         btn.className = `icon-btn done${wide}`;
         btn.textContent = '✓';
-        toast('Gewünscht! Steht jetzt auf der Wunschliste.');
+        toast('Gewünscht! Steht jetzt in der Queue.');
       } catch (err) {
         btn.disabled = false;
         btn.className = `icon-btn add${wide}`;
@@ -573,7 +649,7 @@
   });
   $('adminLogout').addEventListener('click', () => { adminToken = ''; store.del('radio.admin'); showAdmin(); });
   $('clearWishes').addEventListener('click', () => {
-    if (confirm('Wirklich alle Wünsche löschen?')) command('wishClear').then(() => toast('Wunschliste geleert.'));
+    if (confirm('Wirklich alle Wünsche löschen?')) command('wishClear').then(() => toast('Queue geleert.'));
   });
 
   // --- Start ---

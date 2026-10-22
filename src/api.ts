@@ -132,6 +132,9 @@ const browserApi: RadioApi = {
   onRemoteClients() {
     return () => {};
   },
+  onRemoteCode() {
+    return () => {};
+  },
   async roomScan() {
     return [];
   },
@@ -141,6 +144,9 @@ const browserApi: RadioApi = {
   async roomConnect() {},
   async roomDisconnect() {},
   async roomRequest() {
+    return { status: 0, body: { error: DESKTOP_ONLY } };
+  },
+  async roomJoin() {
     return { status: 0, body: { error: DESKTOP_ONLY } };
   },
   onRoomEvent() {

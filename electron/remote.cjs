@@ -15,7 +15,9 @@ const PORTS = [80, 8080, 8000];
 const PAGE = path.join(__dirname, 'remote', 'index.html');
 
 let server = null;
-let options = { key: '', pin: '', roomOpen: false, roomName: '' };
+// Zugang je Art: 'off' | 'public' | 'secure' (Handy = phone, andere Radios im Room = radio)
+let options = { key: '', pin: '', roomName: '', access: { phone: 'off', radio: 'off' }, joinPin: '' };
+let joinCode = null; // { code, clientId, kind, expires } – Einmalcode, den der Host groß anzeigt
 let snapshot = null;
 let send = () => {};
 const streams = new Set(); // { res, clientId }
@@ -55,6 +57,10 @@ function readBody(req) {
   });
 }
 
+/** Eigener Schlüssel je Gerät im sicheren Modus – ohne Speicher prüfbar, gilt auch nach einem Neustart */
+const clientToken = (clientId) => crypto.createHmac('sha256', options.key).update(String(clientId)).digest('hex').slice(0, 32);
+const kindOf = (req) => (req.headers['x-kind'] === 'radio' ? 'radio' : 'phone');
+
 const safeEqual = (a, b) => {
   const x = Buffer.from(String(a));
   const y = Buffer.from(String(b));
@@ -78,7 +84,7 @@ function identify(req, url) {
   name = cleanName(name);
   const admin = adminTokens.has(String(req.headers['x-admin'] || ''));
   const ip = req.socket.remoteAddress?.replace('::ffff:', '') ?? '';
-  const kind = req.headers['x-kind'] === 'radio' ? 'radio' : 'phone';
+  const kind = kindOf(req);
   if (clientId) {
     const known = clients.get(clientId);
     clients.set(clientId, { name, ip, seen: Date.now(), kind });
@@ -135,13 +141,16 @@ function allowed(action, who) {
     case 'toggle':
     case 'next':
     case 'prev':
-    case 'wishStart':
       return r.guestSkip;
+    case 'wishStart':
+      return r.guestSkip && !snapshot?.wishPlaylist; // gewünschte Playlist abbrechen: nur Admin
     case 'volume':
       return r.guestVolume;
     case 'station':
     case 'youtubeItem':
       return r.guestStations;
+    case 'youtubeQueue':
+      return true; // wie ein Wunsch – Regeln prüft die Oberfläche
     case 'wishRemove':
       return true; // eigene Wünsche – prüft die Oberfläche
     default:
@@ -196,8 +205,9 @@ async function handle(req, res) {
       app: 'radio',
       name: options.roomName,
       version: require('electron').app.getVersion(),
-      open: options.roomOpen,
-      key: options.roomOpen ? options.key : undefined,
+      open: options.access.radio !== 'off',
+      secure: options.access.radio === 'secure',
+      key: options.access.radio === 'public' ? options.key : undefined,
       listeners: radios,
     });
   }
@@ -207,9 +217,20 @@ async function handle(req, res) {
     return;
   }
 
-  // Ab hier nur mit gültigem Zugangsschlüssel aus dem QR-Code
+  if (req.method === 'POST' && route === '/api/join') return join(req, res);
+
+  // Ab hier nur mit gültigem Schlüssel: öffentlich der aus dem QR-Code, sicher der eigene des Geräts
   const key = String(req.headers['x-key'] || url.searchParams.get('k') || '');
-  if (!options.key || !safeEqual(key, options.key)) return json(res, 403, { error: 'Zugang abgelaufen – bitte den QR-Code am Radio neu scannen.' });
+  const mode = options.access[kindOf(req)];
+  const clientId = String(req.headers['x-client'] || url.searchParams.get('c') || '');
+  const valid =
+    options.key &&
+    ((mode === 'public' && safeEqual(key, options.key)) || (mode !== 'off' && clientId && safeEqual(key, clientToken(clientId))));
+  if (!valid) {
+    if (mode === 'off') return json(res, 403, { error: 'Das Radio lässt gerade niemanden herein.' });
+    if (mode === 'secure') return json(res, 403, { error: 'Dieses Radio ist gesichert – bitte PIN oder Code eingeben.', join: true });
+    return json(res, 403, { error: 'Zugang abgelaufen – bitte den QR-Code am Radio neu scannen.' });
+  }
   const who = identify(req, url);
 
   if (req.method === 'GET' && route === '/api/events') {
@@ -296,6 +317,47 @@ async function handle(req, res) {
   json(res, 404, { error: 'Unbekannt' });
 }
 
+/** Beitreten im sicheren Modus: PIN prüfen, Einmalcode anfordern oder Code prüfen – liefert den Geräteschlüssel */
+async function join(req, res) {
+  const body = await readBody(req).catch(() => ({}));
+  const kind = kindOf(req);
+  const mode = options.access[kind];
+  const clientId = String(body.clientId ?? '').slice(0, 40);
+  if (mode === 'off' || !options.key) return json(res, 403, { error: 'Das Radio lässt gerade niemanden herein.' });
+  if (!clientId) return json(res, 400, { error: 'Gerätekennung fehlt.' });
+  if (mode === 'public') return json(res, 200, { key: clientToken(clientId) });
+
+  const now = Date.now();
+  if (body.request) {
+    // Neuer Code ersetzt einen alten – angezeigt wird immer nur einer
+    joinCode = { code: String(crypto.randomInt(100000, 1000000)), clientId, kind, expires: now + 120_000 };
+    send('remote:code', { code: joinCode.code, name: cleanName(body.name), kind });
+    setTimeout(() => {
+      if (joinCode && joinCode.expires <= Date.now()) {
+        joinCode = null;
+        send('remote:code', null);
+      }
+    }, 121_000);
+    return json(res, 200, { ok: true });
+  }
+
+  const ip = req.socket.remoteAddress?.replace('::ffff:', '') ?? '';
+  const attempts = (pinAttempts.get(ip) ?? []).filter((t) => now - t < 60_000);
+  if (attempts.length >= 5) return json(res, 429, { error: 'Zu viele Versuche – bitte eine Minute warten.' });
+  const code = String(body.code ?? '').replace(/\D/g, '');
+  const pinOk = body.pin !== undefined && options.joinPin && safeEqual(String(body.pin), options.joinPin);
+  const codeOk = code && joinCode && joinCode.clientId === clientId && joinCode.expires > now && safeEqual(code, joinCode.code);
+  if (!pinOk && !codeOk) {
+    pinAttempts.set(ip, [...attempts, now]);
+    return json(res, 403, { error: 'PIN oder Code falsch – ein Code gilt 2 Minuten.' });
+  }
+  if (codeOk) {
+    joinCode = null;
+    send('remote:code', null);
+  }
+  return json(res, 200, { key: clientToken(clientId) });
+}
+
 // --- Start/Stopp ---------------------------------------------------------------------------
 
 function listen(port) {
@@ -310,16 +372,24 @@ function listen(port) {
   });
 }
 
-async function start(opts) {
+const accessMode = (value) => (value === 'public' || value === 'secure' ? value : 'off');
+
+/** Einstellungen übernehmen (ohne Server zu starten – so auch im Test nutzbar) */
+function configure(opts) {
   const pinChanged = options.pin !== String(opts?.pin ?? '');
   options = {
     key: String(opts?.key ?? ''),
     pin: String(opts?.pin ?? ''),
-    roomOpen: !!opts?.roomOpen,
     roomName: String(opts?.roomName ?? '').slice(0, 40),
+    access: { phone: accessMode(opts?.phone), radio: accessMode(opts?.room) },
+    joinPin: String(opts?.joinPin ?? ''),
   };
   // PIN geändert: bestehende Admin-Anmeldungen verfallen
   if (pinChanged) adminTokens.clear();
+}
+
+async function start(opts) {
+  configure(opts);
   if (!server) {
     for (const port of PORTS) {
       server = await listen(port);
@@ -357,6 +427,8 @@ function setState(state) {
 
 module.exports = {
   start,
+  configure,
+  handle,
   stop,
   info,
   setState,

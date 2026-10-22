@@ -4,11 +4,11 @@ import type { AudioGraph } from '../audio';
 import { useListen, type SearchResult, type useRoom } from '../room';
 import type { HostReceiver, PlayerStatus, RoomPrefs, Station, Track } from '../types';
 import { FullscreenView } from './FullscreenView';
-import { CloseIcon, ExpandIcon, GripIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
+import { CloseIcon, ExpandIcon, HeadphonesIcon, PlusIcon, RoomIcon, SearchIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './Icons';
 import { Controls, Cover } from './Player';
+import { Queue } from './Queue';
 import { StationLogo } from './StationLogo';
 import { VOLUME_STEP } from '../shortcuts';
-import { useDragSort } from '../hooks';
 
 type Room = ReturnType<typeof useRoom>;
 
@@ -65,7 +65,7 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
     if (host?.playing) graph?.context.resume().catch(() => {});
   }, [graph, host?.playing]);
   const [message, setMessage] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'stations' | 'youtube' | 'wishes' | 'receivers'>('stations');
+  const [panel, setPanel] = useState<'stations' | 'youtube' | 'receivers'>('stations');
   useEffect(() => {
     if (!message) return;
     const timer = window.setTimeout(() => setMessage(null), 6000);
@@ -223,10 +223,7 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
               Sender
             </button>
             <button className={panel === 'youtube' ? 'active' : ''} onClick={() => setPanel('youtube')}>
-              YouTube
-            </button>
-            <button className={panel === 'wishes' ? 'active' : ''} onClick={() => setPanel('wishes')}>
-              Wünsche{host?.wishes?.length ? ` (${host.wishes.length})` : ''}
+              YouTube{host?.wishes?.length ? ` (${host.wishes.length})` : ''}
             </button>
             {receivers && (
               <button className={panel === 'receivers' ? 'active' : ''} onClick={() => setPanel('receivers')}>
@@ -251,24 +248,7 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
                 ))}
               </ul>
             )}
-            {panel === 'youtube' && (
-              <ul className="station-list flush">
-                {(host?.youtube ?? []).length === 0 && <p className="side-note">Beim Host sind keine YouTube-Links gespeichert.</p>}
-                {(host?.youtube ?? []).map((item) => (
-                  <li key={item.id} className="station-item">
-                    <button
-                      className="station-select"
-                      disabled={!may(rules?.guestStations)}
-                      onClick={() => run('youtubeItem', item.id)}
-                    >
-                      <span className="room-thumb">{item.thumbnail && <img src={item.thumbnail} alt="" />}</span>
-                      <span className="station-name">{item.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {panel === 'wishes' && <WishPanel room={room} clientId={prefs.clientId} onMessage={setMessage} />}
+            {panel === 'youtube' && <WishPanel room={room} clientId={prefs.clientId} canPlay={may(rules?.guestStations)} onMessage={setMessage} />}
             {panel === 'receivers' && receivers && (
               <div className="room-receivers">
                 <p className="side-note">Empfang am Host – nur für Admins.</p>
@@ -433,16 +413,14 @@ function Progress({ progress, playing }: { progress: { position: number; duratio
   );
 }
 
-function WishPanel({ room, clientId, onMessage }: { room: Room; clientId: string; onMessage(text: string): void }) {
+function WishPanel({ room, clientId, canPlay, onMessage }: { room: Room; clientId: string; canPlay: boolean; onMessage(text: string): void }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState('');
   const [open, setOpen] = useState<{ id: string; entries: SearchResult[] | null } | null>(null);
   const wishes = room.host?.wishes ?? [];
-  const wishDrag = useDragSort(wishes.length, (id, to) =>
-    room.command('wishMove', { id, to }).catch((err: Error) => onMessage(err.message)),
-  );
+  const saved = room.host?.youtube ?? [];
 
   const wish = (r: SearchResult, whole = false) =>
     room
@@ -484,7 +462,7 @@ function WishPanel({ room, clientId, onMessage }: { room: Room; clientId: string
   return (
     <div className="room-wishes">
       <form className="yt-add" onSubmit={submit}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Song oder Playlist suchen …" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Song, Playlist oder YouTube-Link …" />
         <button className="icon-button" disabled={busy} title="Suchen">
           <SearchIcon size={16} />
         </button>
@@ -543,46 +521,55 @@ function WishPanel({ room, clientId, onMessage }: { room: Room; clientId: string
       )}
 
       <div className="sidebar-label flush yt-wishes-head">
-        <span>Wunschliste</span>
-        {wishes.length > 0 && !room.host?.wishedBy && (room.admin || room.host?.rules?.guestSkip !== false) && (
+        <span>Queue{wishes.length ? ` (${wishes.length})` : ''}</span>
+        {wishes.length > 0 && (!room.host?.wishedBy || (room.host.wishPlaylist && room.admin)) && (room.admin || room.host?.rules?.guestSkip !== false) && (
           <button className="mini" onClick={() => room.command('wishStart').catch((err: Error) => onMessage(err.message))}>
-            Jetzt spielen
+            {room.host?.wishPlaylist ? 'Playlist beenden' : 'Jetzt spielen'}
           </button>
         )}
       </div>
       {wishes.length === 0 ? (
-        <p className="side-note">Noch keine Wünsche.</p>
+        <p className="side-note">Die Queue ist leer.</p>
       ) : (
-        <ol className="yt-queue wish-list">
-          {wishes.map((w, i) => (
-            <li key={w.id} {...(room.admin ? wishDrag(w.id, i) : {})}>
-              <div className="wish-row">
-                {room.admin && (
-                  <span className="drag-handle" title="Ziehen zum Sortieren">
-                    <GripIcon size={12} />
-                  </span>
-                )}
-                <span className="yt-queue-title" title={w.title}>
-                  {w.title}
-                  <small>
-                    {w.by}
-                    {w.count !== undefined && ` · Playlist, ${w.count} Songs`}
-                  </small>
-                </span>
-                {(room.admin || w.clientId === clientId) && (
-                  <button
-                    className="icon-button tiny"
-                    onClick={() => room.command('wishRemove', w.id).catch((err: Error) => onMessage(err.message))}
-                    title="Wunsch entfernen"
-                  >
-                    <CloseIcon size={12} />
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
+        <Queue
+          wishes={wishes}
+          canMove={room.admin}
+          canRemove={(w) => room.admin || w.clientId === clientId}
+          onMove={(id, to) => room.command('wishMove', { id, to }).catch((err: Error) => onMessage(err.message))}
+          onRemove={(id) => room.command('wishRemove', id).catch((err: Error) => onMessage(err.message))}
+          loadEntries={(w) => room.playlist(w.url ? new URL(w.url).searchParams.get('list') ?? '' : w.videoId)}
+        />
       )}
+
+      <div className="sidebar-label flush">Gespeichert beim Host</div>
+      {saved.length === 0 && <p className="side-note">Beim Host sind keine YouTube-Links gespeichert.</p>}
+      <ul className="station-list flush">
+        {saved.map((item) => (
+          <li key={item.id} className="station-item">
+            <button className="station-select" disabled={!canPlay} onClick={() => room.command('youtubeItem', item.id).catch((err: Error) => onMessage(err.message))} title="Jetzt spielen">
+              <span className="room-thumb">{item.thumbnail && <img src={item.thumbnail} alt="" />}</span>
+              <span className="station-name">
+                {item.title}
+                <small>{item.kind === 'playlist' ? 'Playlist' : item.kind === 'live' ? 'Livestream' : 'Video'}</small>
+              </span>
+            </button>
+            {item.kind !== 'live' && (
+              <button
+                className="icon-button"
+                title="Hinten an die Queue"
+                onClick={() =>
+                  room
+                    .command('youtubeQueue', item.id)
+                    .then(() => onMessage(`„${item.title}“ ist in der Queue.`))
+                    .catch((err: Error) => onMessage(err.message))
+                }
+              >
+                <PlusIcon size={16} />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
 
       {room.host?.rules?.adminPin && (
         <div className="room-admin">

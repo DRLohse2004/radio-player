@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { RemoteClient, RemoteCommand, RemoteInfo, RemotePrefs, Wish, YouTubeItem } from './types';
+import type { AccessMode, RemoteClient, RemoteCommand, RemoteInfo, RemotePrefs, Wish, WishVideo, YouTubeItem } from './types';
 import { moveTo } from './list';
 import { watchUrl } from './youtube';
 
@@ -12,11 +12,14 @@ export function newRemoteKey() {
   return Array.from(bytes, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 16);
 }
 
+/** Zugang aus den beiden Schaltern: an/aus und sicher */
+export const accessOf = (on: boolean, secure: boolean): AccessMode => (on ? (secure ? 'secure' : 'public') : 'off');
+
 export function wishToItem(wish: Wish): YouTubeItem {
   const playlist = wish.count !== undefined;
   return {
     id: `wish-${wish.id}`,
-    url: playlist ? `https://www.youtube.com/playlist?list=${wish.videoId}` : watchUrl(wish.videoId),
+    url: wish.url ?? (playlist ? `https://www.youtube.com/playlist?list=${wish.videoId}` : watchUrl(wish.videoId)),
     title: wish.title,
     channel: wish.channel,
     thumbnail: wish.thumbnail,
@@ -34,6 +37,8 @@ export interface RemoteHandlers {
   selectStation(id: string): boolean;
   /** gespeicherten YouTube-Eintrag spielen */
   playYoutube(id: string): boolean;
+  /** gespeicherten YouTube-Eintrag suchen (für „+ Queue“) */
+  findYoutube(id: string): YouTubeItem | undefined;
   /** Wunschliste starten (läuft gerade etwas anderes, wird es unterbrochen) */
   startWishes(): void;
   /** Ein Wunsch kam dazu – die App entscheidet, ob er sofort startet */
@@ -47,7 +52,7 @@ export type RemoteSnapshot = Record<string, unknown>;
 
 export function useRemote(
   prefs: RemotePrefs,
-  room: { open: boolean; name: string },
+  room: { open: boolean; secure: boolean; name: string },
   ready: boolean,
   snapshot: RemoteSnapshot,
   handlers: RemoteHandlers,
@@ -71,7 +76,16 @@ export function useRemote(
       return;
     }
     let cancelled = false;
-    api.remoteStart({ key: prefs.key, pin: prefs.pin, roomOpen: room.open, roomName: room.name }).then((result) => {
+    api
+      .remoteStart({
+        key: prefs.key,
+        pin: prefs.pin,
+        roomName: room.name,
+        phone: accessOf(prefs.enabled, prefs.secure),
+        room: accessOf(room.open, room.secure),
+        joinPin: prefs.joinPin,
+      })
+      .then((result) => {
       if (!cancelled) {
         setInfo(result);
         setClients(result.clients ?? []);
@@ -80,7 +94,7 @@ export function useRemote(
     return () => {
       cancelled = true;
     };
-  }, [ready, serving, prefs.key, prefs.pin, room.open, room.name]);
+  }, [ready, serving, prefs.key, prefs.pin, prefs.enabled, prefs.secure, prefs.joinPin, room.open, room.secure, room.name]);
 
   useEffect(() => api.onRemoteClients(setClients), []);
 
@@ -97,12 +111,54 @@ export function useRemote(
   const moveWish = useCallback((id: string, toIndex: number) => setWishes((list) => moveTo(list, id, toIndex)), []);
   const clearWishes = useCallback(() => setWishes([]), []);
 
+  /** Auf die Queue setzen – liefert eine Fehlermeldung, wenn die Regeln es nicht erlauben */
+  const addWish = useCallback((video: WishVideo, client: RemoteCommand['client']): string | null => {
+    const p = prefsRef.current;
+    const list = wishesRef.current;
+    if (list.some((w) => w.videoId === video.id)) return 'Steht schon auf der Wunschliste.';
+    if (!client.admin) {
+      // shortcut: Playlists und gespeicherte Einträge des Hosts (Länge unbekannt) sind von der Längenbegrenzung ausgenommen und zählen als ein Wunsch – bei Missbrauch Admin-Pflicht einführen
+      if (p.maxMinutes > 0 && video.count === undefined && video.duration > p.maxMinutes * 60)
+        return `Zu lang – Wünsche dürfen höchstens ${p.maxMinutes} Minuten lang sein.`;
+      const own = list.filter((w) => w.clientId === client.clientId).length;
+      if (own >= p.maxWishes) return `Du hast schon ${own} offene Wünsche – warte, bis einer gespielt wurde.`;
+    }
+    const wish: Wish = {
+      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      videoId: video.id,
+      title: video.title,
+      channel: video.channel,
+      duration: video.duration,
+      thumbnail: video.thumbnail,
+      by: client.name,
+      clientId: client.clientId,
+      count: video.count,
+      url: video.url,
+    };
+    const next = [...list, wish];
+    wishesRef.current = next;
+    setWishes(next);
+    handlersRef.current.wishAdded();
+    return null;
+  }, []);
+
+  /** Gespeicherten Eintrag des Hosts hinten an die Queue hängen (Livestreams nicht – die enden nie) */
+  const queueItem = useCallback(
+    (item: YouTubeItem, client: RemoteCommand['client']) =>
+      item.kind === 'live'
+        ? 'Livestreams können nicht in die Queue.'
+        : addWish(
+            { id: item.url, url: item.url, title: item.title, channel: item.channel, thumbnail: item.thumbnail, duration: 0, count: item.kind === 'playlist' ? item.count ?? 0 : undefined },
+            client,
+          ),
+    [addWish],
+  );
+
   // Befehle vom Handy
   useEffect(
     () =>
       api.onRemoteCommand((command: RemoteCommand) => {
         const h = handlersRef.current;
-        const p = prefsRef.current;
         const { client } = command;
         const done = (result: { ok?: boolean; error?: string } = { ok: true }) => api.remoteReply(command.id, result);
         switch (command.action) {
@@ -130,34 +186,15 @@ export function useRemote(
             h.startWishes();
             return done();
           case 'wish': {
-            const video = command.video;
-            if (!video) return done({ error: 'Kein Video.' });
-            const list = wishesRef.current;
-            if (list.some((w) => w.videoId === video.id)) return done({ error: 'Steht schon auf der Wunschliste.' });
-            if (!client.admin) {
-              // shortcut: Playlists sind von der Längenbegrenzung ausgenommen, zählen als ein Wunsch – bei Missbrauch Admin-Pflicht einführen
-              if (p.maxMinutes > 0 && video.count === undefined && video.duration > p.maxMinutes * 60)
-                return done({ error: `Zu lang – Wünsche dürfen höchstens ${p.maxMinutes} Minuten lang sein.` });
-              const own = list.filter((w) => w.clientId === client.clientId).length;
-              if (own >= p.maxWishes)
-                return done({ error: `Du hast schon ${own} offene Wünsche – warte, bis einer gespielt wurde.` });
-            }
-            const wish: Wish = {
-              id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-              videoId: video.id,
-              title: video.title,
-              channel: video.channel,
-              duration: video.duration,
-              thumbnail: video.thumbnail,
-              by: client.name,
-              clientId: client.clientId,
-              count: video.count,
-            };
-            const next = [...list, wish];
-            wishesRef.current = next;
-            setWishes(next);
-            h.wishAdded();
-            return done({ ok: true });
+            if (!command.video) return done({ error: 'Kein Video.' });
+            const error = addWish(command.video, client);
+            return done(error ? { error } : { ok: true });
+          }
+          case 'youtubeQueue': {
+            const item = h.findYoutube(String(command.value));
+            if (!item) return done({ error: 'Eintrag nicht gefunden.' });
+            const error = queueItem(item, client);
+            return done(error ? { error } : { ok: true });
           }
           case 'wishRemove': {
             const wish = wishesRef.current.find((w) => w.id === String(command.value));
@@ -184,7 +221,7 @@ export function useRemote(
             return done({ error: 'Unbekannter Befehl.' });
         }
       }),
-    [removeWish, moveWish, clearWishes],
+    [removeWish, moveWish, clearWishes, addWish, queueItem],
   );
 
   // Zustand an die Handys – nur wenn sich etwas geändert hat
@@ -203,5 +240,5 @@ export function useRemote(
 
   const refreshInfo = useCallback(() => api.remoteInfo().then(setInfo), []);
 
-  return { info, clients, wishes, takeWish, removeWish, moveWish, clearWishes, refreshInfo };
+  return { info, clients, wishes, takeWish, removeWish, moveWish, clearWishes, queueItem, refreshInfo };
 }

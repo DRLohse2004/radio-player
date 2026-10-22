@@ -579,7 +579,7 @@
 .wish-list {
   margin: 0 4px;
   border-top: none;
-  max-height: 200px;
+  max-height: 320px;
 }
 .wish-row {
   display: flex;
@@ -603,6 +603,59 @@
 }
 .room-playlist-toggle {
   color: var(--text-faint);
+}
+/* Queue: laufender Wunsch, aufklappbare Playlists */
+.queue-now {
+  margin: 2px 12px 6px;
+  font-size: 12.5px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queue-now small {
+  color: var(--text-faint);
+}
+.yt-queue-title.clickable {
+  cursor: pointer;
+}
+.queue-songs {
+  list-style: none;
+  margin: 0 0 4px 34px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.queue-songs li {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+}
+/* Zugang: Auswahl Aus/Öffentlich/Sicher, Einmalcode groß auf dem Host */
+.access-choice {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.room-secure {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.join-code {
+  z-index: 60;
+}
+.join-code-box {
+  padding: 32px 40px;
+  text-align: center;
+}
+.join-code-digits {
+  margin: 18px 0 24px;
+  font-size: clamp(48px, 9vw, 96px);
+  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
 }
 .wish-by {
   color: #ff8a80;

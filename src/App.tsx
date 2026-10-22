@@ -56,6 +56,8 @@ const DEFAULT_PREFS: Preferences = {
   sidebarOpen: true,
   remote: {
     enabled: false,
+    secure: false,
+    joinPin: '',
     key: '',
     pin: '',
     guestVolume: true,
@@ -66,7 +68,7 @@ const DEFAULT_PREFS: Preferences = {
     qrInFullscreen: false,
   },
   autoUpdate: true,
-  room: { open: false, name: '', join: null, mode: 'listen', volume: 0.7, clientId: '', networks: '' },
+  room: { open: false, secure: false, name: '', join: null, mode: 'listen', volume: 0.7, clientId: '', networks: '' },
   tabs: { radio: true, youtube: true, spotify: true, airplay: true, bluetooth: true },
   theme: 'standard',
 };
@@ -124,6 +126,9 @@ export default function App() {
   const [storeOpen, setStoreOpen] = useState(false);
   const [remoteOpen, setRemoteOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
+  // Einmalcode für ein Gerät, das sich im sicheren Modus verbinden will – groß anzeigen, bis es geklappt hat
+  const [joinCode, setJoinCode] = useState<{ code: string; name: string; kind: 'phone' | 'radio' } | null>(null);
+  useEffect(() => api.onRemoteCode(setJoinCode), []);
 
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
   useTheme(prefs.theme);
@@ -979,6 +984,8 @@ export default function App() {
     album: viewNowPlaying?.album ?? null,
     cover: httpOnly(onYtTab ? ytNow?.fallbackCover ?? ytNow?.cover : viewNowPlaying?.cover),
     wishedBy: onYtTab ? ytNow?.item.wishedBy ?? null : null,
+    // Läuft eine gewünschte Playlist, darf der Admin mit „Jetzt spielen“ zum nächsten Wunsch springen
+    wishPlaylist: onYtTab && !!ytNow?.item.wishedBy && ytNow.item.kind === 'playlist',
     live: onYtTab ? !!ytNow?.live : view === 'radio',
     volume: Math.round(ui.volume * 100) / 100,
     volumeEnabled: !(onBtTab || onApTab || (onSpotifyTab && !sp.active)),
@@ -1010,7 +1017,7 @@ export default function App() {
   // Auch ein pausierter YouTube-Titel zählt: Der Wunsch kommt danach, statt ihn zu verdrängen
   const anythingActive = wantPlay || !!ytNow || yt.state.status === 'loading' || spotifyPlaying || apSession || !!btDevice;
   const roomName = prefs.room.name.trim() || `Radio ${hostname}`;
-  const remote = useRemote(prefs.remote, { open: prefs.room.open, name: roomName }, settingsLoaded, remoteSnapshot, {
+  const remote = useRemote(prefs.remote, { open: prefs.room.open, secure: prefs.room.secure, name: roomName }, settingsLoaded, remoteSnapshot, {
     toggle: () => uiRef.current.toggle(),
     next: () => uiRef.current.next(),
     prev: () => uiRef.current.prev(),
@@ -1020,6 +1027,7 @@ export default function App() {
       selectStation(id);
       return true;
     },
+    findYoutube: (id) => youtubeItems.find((i) => i.id === id),
     playYoutube: (id) => {
       const item = youtubeItems.find((i) => i.id === id);
       if (!item) return false;
@@ -1227,6 +1235,7 @@ export default function App() {
             wishes={remote.wishes}
             onRemoveWish={remote.removeWish}
             onMoveWish={remote.moveWish}
+            onQueue={(item) => remote.queueItem(item, { clientId: 'host', name: roomName, admin: true })}
             onStartWishes={() => {
               const wish = takeWishRef.current();
               if (wish) yt.playWish(wish);
@@ -1529,6 +1538,23 @@ export default function App() {
         />
       )}
 
+      {joinCode && (
+        <div className="modal-backdrop join-code" onMouseDown={(e) => e.target === e.currentTarget && setJoinCode(null)}>
+          <div className="modal join-code-box">
+            <p>
+              {joinCode.kind === 'radio' ? 'Das Radio' : 'Das Handy'} „{joinCode.name}“ möchte sich verbinden.
+              <br />
+              Diesen Code dort eingeben:
+            </p>
+            <div className="join-code-digits">
+              {joinCode.code.slice(0, 3)} {joinCode.code.slice(3)}
+            </div>
+            <button className="button" onClick={() => setJoinCode(null)}>
+              Ausblenden
+            </button>
+          </div>
+        </div>
+      )}
       {roomOpen && (
         <RoomDialog
           prefs={prefs.room}
