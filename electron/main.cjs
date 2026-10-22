@@ -601,7 +601,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.on('remote:state', (_event, state) => remote.setState(state));
     ipcMain.on('remote:reply', (_event, id, result) => remote.reply(id, result));
     room.setSender((channel, payload) => sendToRenderer(channel, payload));
-    ipcMain.handle('room:scan', () => room.scan());
+    ipcMain.handle('room:scan', (_event, networks) => room.scan(String(networks ?? '')));
     ipcMain.handle('room:probe', (_event, address) => room.probeAddress(address));
     ipcMain.handle('room:connect', (_event, options) => room.connect(options ?? {}));
     ipcMain.handle('room:disconnect', () => room.disconnect());

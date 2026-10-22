@@ -147,7 +147,7 @@ An jedem anderen Radio ebenfalls das Room-Symbol öffnen: Das Radio sucht im Net
 
 Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild (F11) gibt es auch im Room. Im Room sieht man die Sender und YouTube-Links des Hosts und kann sich Songs wünschen. Was Gäste dürfen, gilt wie bei der Handy-Fernbedienung. Wer sich unter „Wünsche“ mit der Admin-PIN des Hosts anmeldet, bekommt links zusätzlich den Bereich **„Empfang“** und kann dort Spotify Connect und AirPlay am Host ein- und ausschalten. Die eigenen Einstellungen (oben rechts) bleiben auch im Room erreichbar. „Room verlassen“ bringt die eigenen Sender und Einstellungen unverändert zurück.
 
-> Findet die Suche den Host nicht (z. B. weil er in einem anderen Netz hängt), seine Adresse eintragen – sie steht beim Host im Room-Fenster. Mithören geht für Radiosender und YouTube; Spotify, AirPlay und Bluetooth kommen nur beim Host an und laufen dort weiter.
+> Findet die Suche den Host nicht (z. B. weil er in einem anderen Netz hängt), unter **„Auch in diesen Netzen suchen“** das Netz des Hosts eintragen, z. B. `10.0.11.255` oder `10.0.255.255` für alle 10.0.x.x-Netze – oder direkt seine Adresse eintragen, sie steht beim Host im Room-Fenster. Mithören geht für Radiosender und YouTube; Spotify, AirPlay und Bluetooth kommen nur beim Host an und laufen dort weiter.
 
 ### Reiter ausblenden
 

@@ -5,6 +5,7 @@
 
 const http = require('node:http');
 const { pickInterfaces } = require('./airplay/raop.cjs');
+const discovery = require('./discovery.cjs');
 
 const PROBE_PORTS = [80, 8080];
 let send = () => {};
@@ -67,27 +68,45 @@ async function probeAddress(input) {
   return null;
 }
 
-/** Das eigene /24-Netz jeder Netzwerkkarte nach Radios absuchen */
-async function scan() {
+/**
+ * Radios suchen: das eigene /24-Netz jeder Netzwerkkarte Adresse für Adresse, dazu eine UDP-Frage an
+ * die Broadcast-Adressen der eigenen Netze. `networks` sind zusätzlich eingetragene Netze oder Rechner
+ * (z. B. „10.0.11.255, 10.0.255.255“), siehe discovery.parseNetworks.
+ */
+async function scan(networks = '') {
   const own = pickInterfaces().map((i) => i.address);
+  const extra = discovery.parseNetworks(networks);
+  const answers = discovery.ask([...new Set([...discovery.ownBroadcasts(), '255.255.255.255', ...extra.broadcasts, ...extra.hosts])]);
+
+  const prefixes = new Set([...own.map((address) => address.split('.').slice(0, 3).join('.')), ...extra.prefixes]);
   const targets = [];
-  for (const address of own) {
-    const prefix = address.split('.').slice(0, 3).join('.');
+  for (const prefix of prefixes) {
     for (let i = 1; i < 255; i++) {
       const candidate = `${prefix}.${i}`;
       if (!own.includes(candidate)) for (const port of PROBE_PORTS) targets.push([candidate, port]);
     }
   }
+  for (const host of extra.hosts) {
+    if (!own.includes(host) && !prefixes.has(host.split('.').slice(0, 3).join('.'))) {
+      for (const port of PROBE_PORTS) targets.push([host, port]);
+    }
+  }
+
   const found = [];
+  const add = (result) => {
+    if (result && !found.some((f) => f.address === result.address)) found.push(result);
+  };
   let next = 0;
   const worker = async () => {
     while (next < targets.length) {
       const [address, port] = targets[next++];
-      const result = await probe(address, port, 800);
-      if (result && !found.some((f) => f.address === result.address)) found.push(result);
+      add(await probe(address, port, 800));
     }
   };
-  await Promise.all(Array.from({ length: 160 }, worker));
+  const viaBroadcast = answers.then((list) =>
+    Promise.all(list.filter((a) => !own.includes(a.address)).map(async (a) => add(await probe(a.address, a.port)))),
+  );
+  await Promise.all([...Array.from({ length: 160 }, worker), viaBroadcast]);
   return found.sort((a, b) => a.name.localeCompare(b.name));
 }
 
