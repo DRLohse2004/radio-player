@@ -30,6 +30,7 @@
 - 🎧 **Rooms:** Mehrere Radios schließen sich zusammen. Ein PC ist der Host (z. B. der mit den Lautsprechern), alle anderen hören am eigenen Platz über Kopfhörer mit oder steuern ihn nur – ohne selbst Ton abzuspielen.
 - 📲 **Fernbedienung übers Handy:** QR-Code scannen – Kollegen steuern Lautstärke und Wiedergabe, wechseln den Sender und wünschen sich Songs von YouTube. Ohne App, auf iPhone und Android.
 - ❤️ **Verlauf & Merkliste:** Welcher Song lief gerade? Im Verlauf nachsehen, Songs merken und direkt bei Spotify oder YouTube suchen.
+- 🎨 **Designs:** Neben dem Standard-Design gibt es sechs weitere – vom hellen Kofferradio mit Senderskala über den Röhrenempfänger mit VU-Metern bis zur Fallblatt-Anzeigetafel.
 - ⏰ **Zeitplan:** Zum Beispiel Montag bis Freitag um 8 Uhr automatisch an und um 17 Uhr aus.
 
 ## Installation
@@ -151,6 +152,19 @@ Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild
 ### Reiter ausblenden
 
 Unter **Einstellungen → Reiter** haken Sie an, welche Reiter oben zu sehen sind. Wer z. B. nur Radio und YouTube braucht, blendet Spotify, AirPlay und Bluetooth aus – deren Empfänger laufen dann auch nicht. Die Einstellungen dazu bleiben erhalten; ein Reiter bleibt immer sichtbar.
+
+### Design wählen
+
+Unter **Einstellungen → Design** wählen Sie das Aussehen. Das **Standard**-Design bleibt unverändert; dazu kommen:
+
+- **Kofferradio** – hell und sachlich, mit Senderskala, Stationstasten und Lautsprechergitter
+- **Phosphor** – bernsteinfarbenes Terminal mit Spektrum und Tastenkürzeln
+- **Röhrenempfänger** – Nussbaumrahmen, leuchtende Skala, VU-Meter, die zur Musik ausschlagen
+- **Plakat** – Knallgelb, dicke Rahmen, riesige Schrift und bunte Senderkacheln
+- **Wohnzimmer** – dunkles Olivgrün mit Senderregal aus Eiche
+- **Anzeigetafel** – Titel als Fallblattanzeige, Sender als Tafel wie am Bahnhof
+
+Skala, Tasten, Regal und Tafel zeigen die ersten acht Sender; der laufende ist immer dabei. Alle Schriften sind in die App eingebaut und funktionieren auch offline.
 
 ### Automatisch starten
 

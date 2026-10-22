@@ -36,7 +36,11 @@ export interface Preferences {
   room: RoomPrefs;
   /** sichtbare Reiter – ausgeblendete Empfänger (Spotify, AirPlay, Bluetooth) laufen nicht */
   tabs: Record<SourceTab, boolean>;
+  /** Design der Oberfläche – 'standard' ist das ursprüngliche dunkle Design */
+  theme: ThemeId;
 }
+
+export type ThemeId = 'standard' | 'kofferradio' | 'phosphor' | 'roehre' | 'plakat' | 'wohnzimmer' | 'tafel';
 
 export type SourceTab = 'radio' | 'youtube' | 'spotify' | 'airplay' | 'bluetooth';
 
