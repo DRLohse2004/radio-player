@@ -19,6 +19,8 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(prefs.name);
   useEffect(() => setName(prefs.name), [prefs.name]);
+  const [networks, setNetworks] = useState(prefs.networks);
+  useEffect(() => setNetworks(prefs.networks), [prefs.networks]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -26,18 +28,24 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const scan = useCallback(() => {
+  const scan = useCallback((extra: string) => {
     setScanning(true);
     setError(null);
     api
-      .roomScan()
+      .roomScan(extra)
       .then(setHosts)
       .finally(() => setScanning(false));
   }, []);
 
+  const saveNetworks = () => {
+    const value = networks.trim();
+    if (value !== prefs.networks) onChange({ networks: value });
+    return value;
+  };
+
   // Beim Öffnen gleich suchen – außer man ist selbst Host oder schon drin
   useEffect(() => {
-    if (!prefs.open && !prefs.join && isDesktop) scan();
+    if (!prefs.open && !prefs.join && isDesktop) scan(prefs.networks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -148,7 +156,10 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
                   <div className="room-hosts">
                     {scanning && <p className="muted small">Suche Radios im Netz …</p>}
                     {!scanning && hosts?.length === 0 && (
-                      <p className="muted small">Kein Radio gefunden. Steht der Host in einem anderen Netz, geben Sie seine Adresse unten ein.</p>
+                      <p className="muted small">
+                        Kein Radio gefunden. Steht der Host in einem anderen Netz, tragen Sie unten das Netz ein oder geben Sie seine
+                        Adresse direkt ein.
+                      </p>
                     )}
                     {hosts?.map((host) => (
                       <div key={host.url} className="room-host-row">
@@ -170,9 +181,23 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
                       </div>
                     ))}
                   </div>
-                  <button className="button" disabled={scanning || !isDesktop} onClick={scan}>
+                  <button className="button" disabled={scanning || !isDesktop} onClick={() => scan(saveNetworks())}>
                     {scanning ? 'Suche …' : 'Erneut suchen'}
                   </button>
+                  <label className="field">
+                    <span>Auch in diesen Netzen suchen</span>
+                    <input
+                      value={networks}
+                      placeholder="z. B. 10.0.11.255, 10.0.255.255"
+                      onChange={(e) => setNetworks(e.target.value)}
+                      onBlur={saveNetworks}
+                      onKeyDown={(e) => e.key === 'Enter' && !scanning && scan(saveNetworks())}
+                    />
+                    <small className="muted">
+                      Broadcast-Adressen (10.0.11.255), Netze (10.0.11.0/24) oder einzelne Rechner, mit Komma getrennt. Ein /24-Netz
+                      wird zusätzlich Adresse für Adresse abgefragt – das klappt auch, wenn der Router Broadcasts nicht weiterleitet.
+                    </small>
+                  </label>
                   <div className="room-address">
                     <input
                       value={address}

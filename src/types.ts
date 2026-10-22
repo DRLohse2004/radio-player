@@ -57,6 +57,8 @@ export interface RoomPrefs {
   volume: number;
   /** Kennung dieses Radios beim Host (für eigene Wünsche) */
   clientId: string;
+  /** weitere Netze für die Suche, z. B. „10.0.11.255, 10.0.255.255“ */
+  networks: string;
 }
 
 /** Ein gefundenes Radio im Netz */
@@ -382,7 +384,7 @@ export interface RadioApi {
   remoteReply(id: number, result: { ok?: boolean; error?: string }): void;
   onRemoteCommand(callback: (command: RemoteCommand) => void): () => void;
   onRemoteClients(callback: (clients: RemoteClient[]) => void): () => void;
-  roomScan(): Promise<RoomHost[]>;
+  roomScan(networks?: string): Promise<RoomHost[]>;
   roomProbe(address: string): Promise<RoomHost | null>;
   roomConnect(options: { url: string; key: string; clientId: string; name: string }): Promise<void>;
   roomDisconnect(): Promise<void>;
