@@ -1333,6 +1333,14 @@ export default function App() {
             onDelete={deleteYoutube}
             onMove={moveYoutube}
             onClose={closeSidebar}
+            queue={queue}
+            youtubeActive={sourceActive.youtube}
+            canMoveQueue
+            canRemove={() => true}
+            onStartQueue={startQueue}
+            onMoveWish={remote.moveWish}
+            onRemoveWish={remote.removeWish}
+            onMoveSong={remote.moveSongTo}
             footer={<YtDlpFooter />}
           />
         ) : tab === 'spotify' ? (

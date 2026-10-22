@@ -262,6 +262,14 @@ export function RoomView({ room, prefs, sidebarOpen, onSidebar, onChange, onOpen
           onDelete={(id) => run('youtubeDelete', id)}
           onMove={(id, to) => run('youtubeMove', { id, to })}
           onClose={() => onSidebar(false)}
+          queue={host?.wishes ?? []}
+          youtubeActive={host?.source === 'youtube'}
+          canMoveQueue={room.admin}
+          canRemove={(w) => room.admin || w.clientId === prefs.clientId}
+          onStartQueue={() => run('wishStart')}
+          onMoveWish={(id, to) => run('wishMove', { id, to })}
+          onRemoveWish={(id) => run('wishRemove', id)}
+          onMoveSong={(wish, song, to, out) => run('songMove', { wish, song, to, out })}
         >
           {roomTabs}
         </YouTubeSidebar>

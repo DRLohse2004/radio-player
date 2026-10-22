@@ -520,6 +520,32 @@
   justify-content: space-between;
   padding: 8px 8px 4px 12px;
 }
+/* YouTube-Leiste: Umschalter Queue | Gespeichert */
+.yt-list-tabs {
+  margin: 10px 12px 8px;
+}
+.yt-side-queue {
+  padding: 0 8px 8px;
+}
+.yt-start {
+  width: 100%;
+  justify-content: center;
+  margin: 2px 0 8px;
+}
+.yt-side-queue .q-thumb {
+  width: 56px;
+}
+.yt-side-queue .q-row {
+  gap: 8px;
+  padding: 5px 4px;
+}
+.yt-side-queue .q-sub {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.yt-side-queue .q-songs {
+  margin-left: 12px;
+}
 .room-head {
   display: grid;
   gap: 6px;
