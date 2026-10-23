@@ -154,7 +154,7 @@ abschotten, lassen oft nur diesen Port durch. Die App bleibt die Quelle der Wahr
 Ein Room ist die Fernbedienung für andere Radios – dieselbe HTTP-Schnittstelle wie fürs Handy, nur dass ein Radio sie
 anspricht. So kommt sie auch durch Netze, in denen nur Port 80 offen ist.
 
-- **Host:** derselbe Webserver und Zugang wie die Handy-Fernbedienung („Fernsteuern lassen“). `GET /api/room`
+- **Host:** derselbe Webserver und Zugang wie die Handy-Fernbedienung (Fenster „Rooms“, : links Host, rechts Beitreten). `GET /api/room`
   (ohne Schlüssel) liefert `{ app: 'radio', name, version, open, secure, listeners }` und – nur wenn der Room öffentlich ist –
   den Schlüssel; ist er gesichert, tritt das Radio per `/api/join` (PIN oder Einmalcode) bei. Radios melden sich mit `x-kind: radio` und erscheinen getrennt von Handys.
 - **Finden:** `electron/room.cjs` fragt im eigenen /24-Netz jeder Netzwerkkarte `/api/room` auf Port 80 und 8080 ab
