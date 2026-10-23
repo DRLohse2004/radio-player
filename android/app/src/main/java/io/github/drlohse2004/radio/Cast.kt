@@ -66,7 +66,7 @@ class CastManager(private val core: RadioCore) {
     private var lastVolume = -1f
 
     private fun ui(block: () -> Unit) = main.post(block)
-    private fun status(text: String, err: String? = null) = ui { state = text; error = err }
+    private fun status(text: String, err: String? = null) { ui { state = text; error = err } }
 
     fun choose(speaker: Speaker?) {
         error = null
