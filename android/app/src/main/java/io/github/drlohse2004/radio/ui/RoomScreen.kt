@@ -110,14 +110,17 @@ private fun RoomFinder(core: RadioCore) {
 private fun JoinDialog(core: RadioCore, r: RoomInfo, onDismiss: () -> Unit) {
     var pin by remember { mutableStateOf("") }
     var info by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(r.address) {
+        core.room.join(r, requestCode = true) { err -> info = err ?: "Der Code steht jetzt groß am Host (2 Minuten gültig)." }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Beitreten: ${r.name}") },
         text = {
             Column {
-                Text("Zugangs-PIN des Hosts eingeben – oder einen Code am Host anzeigen lassen und hier eintippen.", color = C.muted)
+                Text("Den Code eingeben, der jetzt groß am Host steht – oder die Zugangs-PIN des Hosts.", color = C.muted)
                 OutlinedTextField(pin, { pin = it }, label = { Text("PIN oder Code") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
-                TextButton({ core.room.join(r, requestCode = true) { err -> info = err ?: "Der Code steht jetzt groß am Host (2 Minuten gültig)." } }) { Text("Code am Host anzeigen") }
+                TextButton({ core.room.join(r, requestCode = true) { err -> info = err ?: "Der Code steht jetzt groß am Host (2 Minuten gültig)." } }) { Text("Neuen Code anzeigen") }
                 info?.let { Note(it) }
             }
         },

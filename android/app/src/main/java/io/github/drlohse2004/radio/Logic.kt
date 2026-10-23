@@ -15,6 +15,27 @@ fun parseStreamTitle(raw: String?): Pair<String?, String>? {
     else null to text
 }
 
+fun normalizeName(s: String) =
+    java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFKD).replace(Regex("[^a-z0-9]+"), " ").trim()
+
+private fun words(s: String) = normalizeName(s).split(" ").filter { it.isNotEmpty() }
+
+/** Alle Wörter des kürzeren Namens kommen im längeren vor – „DAVID GUETTA FEAT. SIA“ passt zu „David Guetta & Sia“ */
+fun artistMatches(query: String, found: String): Boolean {
+    val q = words(query)
+    val f = words(found)
+    if (q.isEmpty() || f.isEmpty()) return false
+    val (shorter, longer) = if (q.size <= f.size) q to f else f to q
+    return shorter.all { it in longer }
+}
+
+/** Alle Wörter des Suchnamens kommen im gefundenen Sendernamen vor */
+fun nameMatches(query: String, found: String): Boolean {
+    val q = words(query)
+    val f = words(found)
+    return q.isNotEmpty() && q.all { it in f }
+}
+
 /** Versionen numerisch vergleichen: 1.10.0 > 1.9.0 */
 fun isNewer(candidate: String, current: String): Boolean {
     val a = candidate.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }

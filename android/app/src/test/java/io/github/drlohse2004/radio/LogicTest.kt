@@ -34,6 +34,14 @@ class LogicTest {
     }
 
     @Test
+    fun namenVergleichen() {
+        assertTrue(artistMatches("DAVID GUETTA FEAT. SIA", "David Guetta & Sia"))
+        assertFalse(artistMatches("Adele", "Coldplay"))
+        assertTrue(nameMatches("1.FM Deep House", "1.FM - Deep House Radio"))
+        assertFalse(nameMatches("Jam FM", "Radio Hamburg"))
+    }
+
+    @Test
     fun versionen() {
         assertTrue(isNewer("1.10.0", "1.9.3"))
         assertTrue(isNewer("v1.13.1", "1.13.0"))

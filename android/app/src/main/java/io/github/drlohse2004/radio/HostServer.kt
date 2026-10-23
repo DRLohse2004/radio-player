@@ -309,7 +309,7 @@ class HostServer(private val core: RadioCore) {
             fail(req.ip)
             return reject(socket, 403, "PIN oder Code falsch – ein Code gilt 2 Minuten.")
         }
-        if (codeOk) {
+        if (codeOk || pending?.second == clientId) {
             pendingCode = null
             main.post { joinCode = null }
         }

@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -55,6 +56,8 @@ class RadioCore(val context: Context) {
         private set
     var cover by mutableStateOf<String?>(null)
         private set
+    var album by mutableStateOf<String?>(null)
+        private set
     /** Kurze Meldung für die Oberfläche (Snackbar) */
     var message by mutableStateOf<String?>(null)
 
@@ -74,7 +77,19 @@ class RadioCore(val context: Context) {
 
     val current: Station? get() = settings.stations.firstOrNull { it.id == settings.lastStationId } ?: settings.stations.firstOrNull()
 
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+    private var applyPending = false
+    private val logoTried = mutableSetOf<String>()
+
     init {
+        // Compose meldet Zustandsänderungen sonst nur mit dem nächsten Bild – bei gesperrtem Bildschirm also nie.
+        // Lautsprecher und Gäste müssen aber auch dann folgen.
+        Snapshot.registerGlobalWriteObserver {
+            if (!applyPending) {
+                applyPending = true
+                main.post { applyPending = false; Snapshot.sendApplyNotifications() }
+            }
+        }
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) = updateStatus()
             override fun onIsPlayingChanged(isPlaying: Boolean) = updateStatus()
@@ -112,7 +127,7 @@ class RadioCore(val context: Context) {
             snapshotFlow { castWish() }.distinctUntilChanged().collect { cast.follow(it) }
         }
         scope.launch {
-            snapshotFlow { cast.device != null to settings.volume }.collect { applyVolume() }
+            snapshotFlow { (cast.device != null) to settings.volume }.collect { applyVolume() }
         }
         scope.launch {
             snapshotFlow { hostSnapshot().toString() }.distinctUntilChanged().collect { host.publish(it) }
@@ -128,6 +143,7 @@ class RadioCore(val context: Context) {
             }
         }
         if (settings.autoUpdate) updater.check(silent = true)
+        findLogos()
     }
 
     // --- Einstellungen ---------------------------------------------------------------------
@@ -151,6 +167,7 @@ class RadioCore(val context: Context) {
         title = null
         artist = null
         cover = null
+        album = null
         syncPlayer()
     }
 
@@ -238,6 +255,7 @@ class RadioCore(val context: Context) {
         title = newTitle
         artist = newArtist
         cover = null
+        album = null
         val station = current?.name.orEmpty()
         player.replaceMediaItem(
             0,
@@ -248,9 +266,11 @@ class RadioCore(val context: Context) {
         )
         if (newTitle == null || newArtist == null) return
         scope.launch {
-            val found = withContext(Dispatchers.IO) { lookupCover(newArtist, newTitle) }
+            val hit = withContext(Dispatchers.IO) { lookupCover(newArtist, newTitle) }
             if (title != newTitle) return@launch
+            val found = hit?.first
             cover = found
+            album = hit?.second
             val track = Track(newTitle, newArtist, station, found, System.currentTimeMillis())
             update { s ->
                 val last = s.history.firstOrNull()
@@ -264,13 +284,54 @@ class RadioCore(val context: Context) {
         }
     }
 
-    private fun lookupCover(artist: String, title: String): String? = runCatching {
-        val term = URLEncoder.encode("$artist $title", "UTF-8")
-        val results = httpJson("https://itunes.apple.com/search?term=$term&entity=song&limit=5", timeout = 5000).getJSONArray("results")
-        (0 until results.length()).map { results.getJSONObject(it) }
-            .firstOrNull { it.optString("artistName").contains(artist.split(" feat", ",", "&").first().trim(), ignoreCase = true) }
-            ?.optString("artworkUrl100")?.replace("100x100", "600x600")
-    }.getOrNull()
+    private val coverCache = mutableMapOf<String, Pair<String?, String?>?>()
+
+    /** Cover und Album über die iTunes-Suche – wie lookupCover in main.cjs */
+    private fun lookupCover(artist: String, title: String): Pair<String?, String?>? {
+        val key = "$artist|$title".lowercase()
+        synchronized(coverCache) { if (key in coverCache) return coverCache[key] }
+        val result = runCatching {
+            val term = URLEncoder.encode("$artist $title", "UTF-8")
+            val results = httpJson("https://itunes.apple.com/search?term=$term&media=music&entity=song&limit=5&country=DE", timeout = 10_000).getJSONArray("results")
+            (0 until results.length()).map { results.getJSONObject(it) }
+                .firstOrNull { artistMatches(artist, it.optString("artistName")) }
+                ?.let { it.optString("artworkUrl100").replace("100x100bb", "600x600bb").ifEmpty { null } to it.optString("collectionName").ifEmpty { null } }
+        }
+        // Netzfehler nicht merken – vielleicht nur kurz offline oder gedrosselt
+        if (result.isFailure) return null
+        return result.getOrNull().also { synchronized(coverCache) { coverCache[key] = it } }
+    }
+
+    /** Fehlende Senderlogos über die Radio-Browser-Datenbank suchen (nach Stream-Adresse, sonst Name) */
+    fun findLogos() {
+        val missing = settings.stations.filter { it.logo == null && logoTried.add(it.id) }
+        if (missing.isEmpty()) return
+        scope.launch {
+            for (st in missing) {
+                val logo = withContext(Dispatchers.IO) { lookupLogo(st) } ?: continue
+                update { s -> s.copy(stations = s.stations.map { if (it.id == st.id && it.logo == null) it.copy(logo = logo) else it }) }
+            }
+        }
+    }
+
+    private fun lookupLogo(st: Station): String? {
+        fun query(path: String) = runCatching {
+            val a = JSONArray(httpText("https://de1.api.radio-browser.info/json/$path", timeout = 8000))
+            (0 until a.length()).map { a.getJSONObject(it) }
+        }.getOrDefault(emptyList())
+        val byUrl = query("stations/byurl?url=" + URLEncoder.encode(st.url, "UTF-8"))
+        val byName = query("stations/search?name=" + URLEncoder.encode(st.name, "UTF-8") + "&limit=20&hidebroken=true&order=clickcount&reverse=true")
+            .filter { nameMatches(st.name, it.optString("name")) }
+            .sortedByDescending { normalizeName(it.optString("name")) == normalizeName(st.name) }
+        return (byUrl + byName).map { it.optString("favicon") }.filter { it.startsWith("http") }.distinct().take(5).firstOrNull { isImage(it) }
+    }
+
+    private fun isImage(url: String) = runCatching {
+        val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 5000
+        c.readTimeout = 5000
+        try { c.responseCode in 200..299 && c.contentType.orEmpty().startsWith("image/") } finally { c.disconnect() }
+    }.getOrDefault(false)
 
     fun isFavorite(t: Track) = settings.favorites.any { it.title == t.title && it.artist == t.artist }
 
@@ -281,9 +342,15 @@ class RadioCore(val context: Context) {
 
     // --- Sender verwalten ------------------------------------------------------------------
 
-    fun saveStation(station: Station) = update { s ->
-        if (s.stations.any { it.id == station.id }) s.copy(stations = s.stations.map { if (it.id == station.id) station else it })
-        else s.copy(stations = s.stations + station)
+    fun saveStation(station: Station) {
+        update { s ->
+            if (s.stations.any { it.id == station.id }) s.copy(stations = s.stations.map { if (it.id == station.id) station else it })
+            else s.copy(stations = s.stations + station)
+        }
+        if (station.logo == null) {
+            logoTried.remove(station.id)
+            findLogos()
+        }
     }
 
     fun deleteStation(id: String) = update { s -> s.copy(stations = s.stations.filterNot { it.id == id }) }
@@ -324,7 +391,7 @@ class RadioCore(val context: Context) {
             .put("canControl", true)
             .put("title", if (playing) title else null)
             .put("artist", if (playing) artist else null)
-            .put("album", JSONObject.NULL)
+            .put("album", if (playing) album else null)
             .put("cover", cover ?: station?.logo?.takeIf { it.startsWith("http") })
             .put("live", true)
             .put("volume", Math.round(settings.volume * 100) / 100.0)

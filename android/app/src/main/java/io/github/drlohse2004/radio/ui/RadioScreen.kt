@@ -77,7 +77,13 @@ fun RadioScreen(core: RadioCore) {
                 Text("Radio", color = C.text, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 CastIconButton(core.cast) { castOpen = true }
             }
-            NowPlaying(core.cover ?: station?.logo, station?.name ?: "Radio", if (playing) core.title else null, if (playing) core.artist else null, statusText)
+            NowPlaying(
+                (if (playing) core.cover else null) ?: station?.logo,
+                station?.name ?: "Radio",
+                if (playing) core.title else null,
+                if (playing) listOfNotNull(core.artist, core.album).joinToString(" · ").ifEmpty { null } else null,
+                statusText,
+            )
             core.cast.device?.let { Note("Spielt auf „${it.name}“ ${core.cast.state}", C.accent) }
             Controls(playing, playing && core.status == Status.LOADING, station != null, core::prev, core::toggle, core::next)
             VolumeSlider(core.settings.volume) { core.setVolume(it) }
