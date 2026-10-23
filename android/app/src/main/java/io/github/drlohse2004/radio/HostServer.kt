@@ -67,7 +67,8 @@ class HostServer(private val core: RadioCore) {
 
     fun publish(state: String) {
         snapshot = state
-        broadcastRaw("event: state\ndata: $state\n\n")
+        // Kommt aus dem Haupt-Thread – dort verbietet Android Netzwerkzugriffe, also im eigenen Thread senden
+        pinger.execute { broadcastRaw("event: state\ndata: $state\n\n") }
     }
 
     private fun broadcastRaw(text: String) {

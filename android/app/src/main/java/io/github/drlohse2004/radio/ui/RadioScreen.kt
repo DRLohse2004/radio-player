@@ -58,6 +58,8 @@ import java.net.URLEncoder
 
 @Composable
 fun RadioScreen(core: RadioCore) {
+    // Im Room steuert der Radio-Reiter den Host
+    if (core.room.active) return HostRemote(core)
     var castOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Station?>(null) }
     var storeOpen by remember { mutableStateOf(false) }

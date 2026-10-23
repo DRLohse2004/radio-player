@@ -184,7 +184,7 @@ class RoomClient(private val core: RadioCore) {
 
     private fun leaveQuietly() {
         session++
-        runCatching { stream?.disconnect() }
+        stream?.let { c -> pool.execute { runCatching { c.disconnect() } } }
         active = false
         connected = false
         state = null

@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -29,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,7 +53,7 @@ import org.json.JSONObject
 
 @Composable
 fun RoomScreen(core: RadioCore) {
-    if (core.room.active) RoomConnected(core) else RoomFinder(core)
+    if (core.room.active) RoomConnection(core) else RoomFinder(core)
 }
 
 @Composable
@@ -132,12 +132,74 @@ private fun JoinDialog(core: RadioCore, r: RoomInfo, onDismiss: () -> Unit) {
     )
 }
 
+private fun str(o: JSONObject, name: String) = if (o.has(name) && !o.isNull(name)) o.optString(name).ifEmpty { null } else null
+
+/** Room-Reiter im Room: nur die Verbindung – und als Admin der Empfang am Host (Spotify, AirPlay) */
 @Composable
-private fun RoomConnected(core: RadioCore) {
+private fun RoomConnection(core: RadioCore) {
+    val room = core.room
+    val s = room.state ?: JSONObject()
+    var pin by remember { mutableStateOf("") }
+    val rules = s.optJSONObject("rules")
+    val receivers = s.optJSONObject("receivers")
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Text("Room", color = C.text, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
+        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Artwork(null, room.name, 44.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(room.name, color = C.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    (if (room.connected) "verbunden" else "verbindet …") + if (room.admin) " · Admin" else "",
+                    color = if (room.connected) C.live else C.warn,
+                    fontSize = 12.sp,
+                )
+            }
+        }
+        Note("Gesteuert wird im Reiter „Radio“ – dort oben zwischen Mithören und Fernsteuern wählen.")
+        OutlinedButton({ room.leave() }, Modifier.fillMaxWidth()) { Text("Room verlassen") }
+
+        if (!room.admin && rules?.optBoolean("adminPin") == true) {
+            SectionTitle("Admin")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    pin, { pin = it }, label = { Text("Admin-PIN des Hosts") }, singleLine = true, modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                )
+                Spacer(Modifier.width(8.dp))
+                Button({ room.login(pin) { ok -> core.message = if (ok) "Als Admin angemeldet." else "PIN falsch." } }, colors = accentButton()) { Text("Anmelden") }
+            }
+        }
+        if (room.admin && receivers != null) {
+            SectionTitle("Empfang am Host")
+            for ((kind, label) in listOf("spotify" to "Spotify Connect", "airplay" to "AirPlay")) {
+                val r = receivers.optJSONObject(kind) ?: continue
+                val enabled = r.optBoolean("enabled")
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(label, color = C.text)
+                        val info = str(r, "error") ?: when {
+                            !enabled -> "aus"
+                            str(r, "client") != null -> "verbunden mit ${str(r, "client")}"
+                            r.optBoolean("running") -> "sichtbar als „${r.optString("name")}“"
+                            else -> "startet …"
+                        }
+                        Text(info, color = if (str(r, "error") != null) C.warn else C.faint, fontSize = 12.sp)
+                    }
+                    Switch(enabled, { on -> room.command("receiver", JSONObject().put("kind", kind).put("enabled", on)) })
+                }
+            }
+        }
+    }
+}
+
+/** Radio-Reiter im Room: sieht aus wie das eigene Radio, steuert aber den Host */
+@Composable
+fun HostRemote(core: RadioCore) {
     val room = core.room
     val s = room.state ?: JSONObject()
     var castOpen by remember { mutableStateOf(false) }
-    var pin by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     val listen = s.optJSONObject("listen")
@@ -145,42 +207,44 @@ private fun RoomConnected(core: RadioCore) {
     fun allowed(rule: String) = room.admin || rules?.optBoolean(rule, true) != false
     val stations = s.optJSONArray("stations")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.orEmpty()
     val wishes = s.optJSONArray("wishes")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.orEmpty()
-    fun str(o: JSONObject, name: String) = if (o.has(name) && !o.isNull(name)) o.optString(name).ifEmpty { null } else null
 
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(room.name, color = C.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(if (room.connected) "verbunden" else "verbindet …", color = if (room.connected) C.live else C.warn, fontSize = 12.sp)
+                    Text("Radio", color = C.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "bei ${room.name}" + if (room.connected) "" else " · verbindet …",
+                        color = if (room.connected) C.muted else C.warn,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 if (room.listening) CastIconButton(core.cast) { castOpen = true }
-                IconButton({ room.leave() }) { Icon(Icons.Filled.Close, "Room verlassen", tint = C.muted) }
             }
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                 SegmentedButton(room.listening, { room.listening = true }, SegmentedButtonDefaults.itemShape(0, 2)) { Text("Mithören") }
-                SegmentedButton(!room.listening, { room.listening = false }, SegmentedButtonDefaults.itemShape(1, 2)) { Text("Nur Fernbedienung") }
+                SegmentedButton(!room.listening, { room.listening = false }, SegmentedButtonDefaults.itemShape(1, 2)) { Text("Fernsteuern") }
             }
-            NowPlaying(str(s, "cover"), str(s, "sourceName") ?: room.name, str(s, "title"), str(s, "artist"), if (s.optBoolean("playing")) "läuft" else "pausiert")
+            NowPlaying(
+                str(s, "cover"),
+                str(s, "sourceName") ?: room.name,
+                str(s, "title"),
+                listOfNotNull(str(s, "artist"), str(s, "album")).joinToString(" · ").ifEmpty { null },
+                if (s.optBoolean("playing")) "läuft" else "pausiert",
+            )
             if (room.listening && listen?.optString("kind") == "youtube") Note("YouTube hört man nur an Windows-Radios mit – das Handy steuert hier nur.", C.warn)
             core.cast.device?.let { Note("Spielt auf „${it.name}“ ${core.cast.state}", C.accent) }
             Controls(s.optBoolean("playing"), false, allowed("guestSkip"), { room.command("prev") }, { room.command("toggle") }, { room.command("next") })
             if (room.listening) {
-                Note("Lautstärke am Handy")
                 VolumeSlider(core.settings.volume) { core.setVolume(it) }
+                Note("Lautstärke am Handy")
             } else {
-                Note("Lautstärke am Host")
                 VolumeSlider(s.optDouble("volume", 0.5).toFloat(), allowed("guestVolume") && s.optBoolean("volumeEnabled", true)) {
                     room.command("volume", Math.round(it * 100) / 100.0)
                 }
-            }
-            if (!room.admin && rules?.optBoolean("adminPin") == true) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(pin, { pin = it }, label = { Text("Admin-PIN") }, singleLine = true, modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
-                    Spacer(Modifier.width(8.dp))
-                    Button({ room.login(pin) { ok -> core.message = if (ok) "Als Admin angemeldet." else "PIN falsch." } }, colors = accentButton()) { Text("Anmelden") }
-                }
+                Note("Lautstärke am Host")
             }
             if (wishes.isNotEmpty()) SectionTitle("Queue")
         }
@@ -192,6 +256,19 @@ private fun RoomConnected(core: RadioCore) {
                     Text(w.optString("title"), color = C.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(listOfNotNull(str(w, "channel"), str(w, "by")?.let { "gewünscht von $it" }).joinToString(" · "), color = C.faint, fontSize = 12.sp, maxLines = 1)
                 }
+            }
+        }
+        item { if (stations.isNotEmpty()) SectionTitle("Sender") }
+        items(stations, key = { it.optString("id") }) { st ->
+            val current = st.optString("id") == s.optString("currentStationId") && s.optString("source") == "radio"
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (current) C.surface2 else Color.Transparent)
+                    .clickable(enabled = allowed("guestStations")) { room.command("station", st.optString("id")) }.padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Artwork(str(st, "logo"), st.optString("name"), 40.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(st.optString("name"), color = if (current) C.text else C.muted, fontWeight = FontWeight.SemiBold)
             }
         }
         item {
@@ -213,19 +290,6 @@ private fun RoomConnected(core: RadioCore) {
                     Text(listOfNotNull(str(r, "channel"), if (r.optString("kind") == "playlist") "Playlist" else null).joinToString(" · "), color = C.faint, fontSize = 12.sp)
                 }
                 IconButton({ room.wish(r) }) { Icon(Icons.Filled.Add, "In die Queue", tint = C.accent) }
-            }
-        }
-        item { if (stations.isNotEmpty()) SectionTitle("Sender des Hosts") }
-        items(stations, key = { it.optString("id") }) { st ->
-            val current = st.optString("id") == s.optString("currentStationId") && s.optString("source") == "radio"
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (current) C.surface2 else Color.Transparent)
-                    .clickable(enabled = allowed("guestStations")) { room.command("station", st.optString("id")) }.padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Artwork(str(st, "logo"), st.optString("name"), 40.dp)
-                Spacer(Modifier.width(12.dp))
-                Text(st.optString("name"), color = if (current) C.text else C.muted, fontWeight = FontWeight.SemiBold)
             }
         }
         item { Gap(24.dp) }
