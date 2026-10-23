@@ -65,3 +65,9 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    // org.json steckt in Android; für Unit-Tests auf der JVM die echte Bibliothek
+    testImplementation("org.json:json:20240303")
+}
