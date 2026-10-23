@@ -50,6 +50,20 @@ Beim **ersten Start einer neuen Version** bereitet das Radio sich einige Sekunde
 
 Ihre Sender und Einstellungen speichert das Radio im Ordner **`RadioPlayer-Daten`** direkt neben der .exe. Kopieren Sie beides zusammen, nehmen Sie alles mit auf einen anderen PC.
 
+### Android
+
+1. Auf dem Handy **[Radio.apk herunterladen](https://github.com/DRLohse2004/radio-player/releases/latest/download/Radio.apk)** und öffnen.
+2. Android fragt, ob der Browser Apps installieren darf – einmal erlauben, dann „Installieren“.
+
+Die Android-App kann:
+
+- **Radio hören** – Sender, Titel und Cover, Sender-Store, Verlauf und Merkliste, Wiedergabe im Hintergrund mit Steuerung in der Benachrichtigung.
+- **Auf Lautsprecher streamen** – Chromecast und DLNA (z. B. WiiM) wie am PC, auch beim Mithören im Room.
+- **Rooms** – Windows-Radios und andere Handys finden, fernsteuern oder mithören; YouTube-Wünsche an Windows-Hosts schicken.
+- **Host sein** – unter **Einstellungen → Als Host** treten Windows-Radios, andere Handys und **Home Assistant** bei (Port 8080). Zugang wie am PC: Aus, Öffentlich oder Sicher mit PIN bzw. Einmalcode.
+
+Nicht dabei sind YouTube direkt am Handy, Spotify Connect, AirPlay- und Bluetooth-Empfang sowie die Designs. Updates findet die App selbst; beim ersten Update fragt Android einmal nach der Erlaubnis „Apps aus dieser Quelle“.
+
 ## So geht's
 
 Oben wählen Sie den Bereich: **Radio, YouTube, Spotify, AirPlay oder Bluetooth**. Links schwebt die passende Seitenleiste – beim Radio die Sender, bei YouTube die gespeicherten Links, sonst die Einstellungen. Mit dem Symbol oben links blenden Sie sie aus und ein.

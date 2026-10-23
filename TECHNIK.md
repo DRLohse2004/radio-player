@@ -307,6 +307,32 @@ bereitzustellen:
 | Entpackte App (vom Starter) | `%LOCALAPPDATA%\RadioPlayer\app\<version>-<prüfsumme>` |
 | Fernbedienung (Schlüssel, PIN, Regeln) | in `radio-settings.json` (Feld `prefs.remote`) |
 
+## Android-App
+
+Native App in `android/` (Kotlin, Jetpack Compose, Media3/ExoPlayer), gebaut von `.github/workflows/android.yml` –
+lokal ist kein Android SDK nötig. Die Version kommt aus `package.json` (`-PversionName`, `versionCode` = X·10000 + Y·100 + Z).
+
+```
+android/app/src/main/java/io/github/drlohse2004/radio/
+  RadioCore.kt     Zustand und Wiedergabe (wie App.tsx): Sender, ICY-Titel (IcyInfo), Cover (iTunes), Verlauf,
+                   Zustand für Gäste (hostSnapshot, dieselben Felder wie remoteSnapshot)
+  PlaybackService  MediaSessionService: Hintergrund und Benachrichtigung, Weiter/Zurück wechseln den Sender
+  Cast.kt          Chromecast (NsdManager _googlecast._tcp, CASTV2 über TLS) und DLNA (SSDP, SOAP) – wie cast.cjs/dlna.cjs
+  Room.kt          Room-Gast: UDP „radio-room?“ + /24-Suche auf 80/8080, /api/join, SSE /api/events, Befehle
+  HostServer.kt    Host: /api/room, /api/join, /api/events, /api/state, /api/command, /api/admin auf Port 8080
+                   (Android erlaubt keine Ports unter 1024), UDP-Antwort auf 47811; ohne Handy-Webseite und YouTube
+  Updater.kt       GitHub-Release mit Radio.apk finden, laden, Installation per FileProvider öffnen
+  Logic.kt         reine Funktionen (Titel, Versionen, clientToken, CastMessage, DLNA-Beschreibung) – LogicTest.kt
+  ui/              Oberfläche: Radio, Room, Verlauf, Einstellungen; Farben wie das Standard-Design
+```
+
+- **Signatur:** fester Schlüssel als Secrets `ANDROID_KEYSTORE_B64`/`ANDROID_KEYSTORE_PASSWORD` (PKCS12, Alias `radio`).
+  Ohne denselben Schlüssel lassen sich Updates nicht über die installierte App spielen – die Datei sicher aufbewahren.
+- **Release:** Beim Veröffentlichen eines GitHub-Release baut die Action die APK und hängt sie als `Radio.apk` an
+  (ein paar Minuten nach `gh release create`). Daran erkennt der Updater neue Versionen.
+- Als Host läuft der Server, solange die App offen ist oder spielt (Hintergrunddienst); sonst kann Android ihn beenden.
+- Mithören im Room geht für Radiosender; YouTube-Titel löst nur ein Windows-Host mit yt-dlp auf.
+
 ## Release veröffentlichen
 
 1. Version in `package.json` erhöhen.

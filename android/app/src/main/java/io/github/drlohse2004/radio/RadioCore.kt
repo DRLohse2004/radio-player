@@ -121,7 +121,11 @@ class RadioCore(val context: Context) {
             snapshotFlow { settings.host }.distinctUntilChanged().collect { host.configure(it) }
         }
         scope.launch {
-            snapshotFlow { Triple(room.active, room.listening, room.listenUrl) }.distinctUntilChanged().collect { syncPlayer() }
+            snapshotFlow { Triple(room.active, room.listening, room.listenUrl) }.distinctUntilChanged().collect {
+                // Wie unter Windows: Im Room endet die eigene Wiedergabe
+                if (room.active) wantPlay = false
+                syncPlayer()
+            }
         }
         if (settings.autoUpdate) updater.check(silent = true)
     }
