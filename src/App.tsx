@@ -12,6 +12,8 @@ import { BluetoothSidebar, BluetoothStage } from './components/BluetoothPanel';
 import { YouTubeSidebar, YtDlpFooter } from './components/YouTubeSidebar';
 import { YouTubeStage } from './components/YouTubeStage';
 import { useYouTube } from './youtube';
+import { useCast } from './cast';
+import { CastButton } from './components/CastButton';
 import { isPlaylist, nextTrack, topTrack } from './queue';
 import { newRemoteKey, useRemote } from './remote';
 import { newClientId, useRoom } from './room';
@@ -263,15 +265,6 @@ export default function App() {
       setGraph(g);
     }
   }, []);
-
-  useEffect(() => {
-    for (const audio of [audioRef.current, ytAudioRef.current]) {
-      if (!audio) continue;
-      audio.volume = graph ? 1 : volume;
-      audio.muted = graph ? false : muted;
-    }
-    graph?.gain.gain.setTargetAtTime(muted ? 0 : volume, graph.context.currentTime, 0.05);
-  }, [volume, muted, graph]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -1013,6 +1006,26 @@ export default function App() {
       },
     },
   };
+  // Chromecast folgt der eigenen Wiedergabe; die läuft solange stumm weiter (Titel, Queue, Position)
+  const cast = useCast({
+    media: hostListen,
+    playing: ui.isPlaying,
+    volume: muted ? 0 : volume,
+    title: hostListen.kind === 'youtube' ? remoteSnapshot.title : null,
+    artist: hostListen.kind === 'youtube' ? remoteSnapshot.artist : null,
+    cover: hostListen.kind === 'youtube' ? remoteSnapshot.cover : httpOnly(viewStation?.logo),
+    station: viewStation?.name ?? '',
+  });
+
+  useEffect(() => {
+    for (const audio of [audioRef.current, ytAudioRef.current]) {
+      if (!audio) continue;
+      audio.volume = graph ? 1 : volume;
+      audio.muted = graph ? false : muted || !!cast.device;
+    }
+    graph?.gain.gain.setTargetAtTime(muted || cast.device ? 0 : volume, graph.context.currentTime, 0.05);
+  }, [volume, muted, graph, cast.device]);
+
   // Auch ein pausierter YouTube-Titel zählt: Der Wunsch kommt danach, statt ihn zu verdrängen
   const anythingActive = wantPlay || !!ytNow || yt.state.status === 'loading' || spotifyPlaying || apSession || !!btDevice;
   const roomName = prefs.room.name.trim() || `Radio ${hostname}`;
@@ -1565,6 +1578,7 @@ export default function App() {
             onNext={ui.next}
           />
           <div className="volume">
+            {isDesktop && <CastButton cast={cast} />}
             <button
               className="icon-button"
               onClick={() => (view === 'radio' || view === 'youtube') && setMuted((m) => !m)}

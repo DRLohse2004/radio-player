@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Radio verbinden",
+        "description": "Am Radio die Handy-Fernbedienung auf „Öffentlich“ oder „Sicher“ stellen. Die Adresse steht dort im Fernbedienungs-Fenster.",
+        "data": { "host": "Adresse des Radios (z. B. 192.168.1.50 oder 192.168.1.50:8080)", "admin_pin": "Admin-PIN (optional, für alle Rechte)" }
+      },
+      "join": {
+        "title": "Zugang zu „{name}“",
+        "description": "Das Radio ist gesichert. Geben Sie die Join-PIN ein oder den Code, der jetzt groß am Radio steht (gilt 2 Minuten).",
+        "data": { "pin": "PIN oder Code" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Radio nicht erreichbar. Läuft es, und ist die Handy-Fernbedienung eingeschaltet?",
+      "closed": "Die Handy-Fernbedienung ist am Radio ausgeschaltet.",
+      "invalid_pin": "PIN oder Code falsch.",
+      "invalid_admin_pin": "Admin-PIN falsch."
+    },
+    "abort": { "already_configured": "Dieses Radio ist schon eingerichtet." }
+  }
+}

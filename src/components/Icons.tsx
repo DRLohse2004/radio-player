@@ -333,3 +333,11 @@ export const HeadphonesIcon = (p: IconProps) => (
     <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
   </Icon>
 );
+
+export const CastIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
+    <path d="M3 12a8 8 0 0 1 8 8M3 16a4 4 0 0 1 4 4" />
+    <path d="M3 20h.01" />
+  </Icon>
+);

@@ -28,6 +28,8 @@
 - 📱 **Vom Handy per Bluetooth:** iPhone oder Android-Handy koppeln und Musik aus jeder App abspielen – ohne WLAN, auch ohne Spotify Premium.
 - 🟢 **Spotify Connect:** Das Radio erscheint in der Spotify-App als Lautsprecher. Startet jemand dort Musik, schaltet das Radio automatisch um.
 - 🎧 **Rooms:** Mehrere Radios schließen sich zusammen. Ein PC ist der Host (z. B. der mit den Lautsprechern), alle anderen hören am eigenen Platz über Kopfhörer mit oder steuern ihn nur – ohne selbst Ton abzuspielen.
+- 🔊 **Auf Lautsprecher streamen:** Radio und YouTube auf Chromecast, Google-/Nest-Lautsprecher, WiiM-Geräte und andere DLNA-Lautsprecher oder AV-Receiver schicken.
+- 🏠 **Home Assistant:** Das Radio erscheint dort als Mediaplayer – für Dashboards und Automationen.
 - 📲 **Fernbedienung übers Handy:** QR-Code scannen – Kollegen steuern Lautstärke und Wiedergabe, wechseln den Sender und wünschen sich Songs von YouTube. Ohne App, auf iPhone und Android.
 - ❤️ **Verlauf & Merkliste:** Welcher Song lief gerade? Im Verlauf nachsehen, Songs merken und direkt bei Spotify oder YouTube suchen.
 - 🎨 **Designs:** Neben dem Standard-Design gibt es sieben weitere – vom hellen Kofferradio mit Senderskala über den Röhrenempfänger mit VU-Metern bis zur Fallblatt-Anzeigetafel und zur modernen Konsole.
@@ -140,6 +142,26 @@ Am Handy gibt es:
 Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren – auch die Songs einer aufgeklappten Playlist; **„↥“** holt einen Song ganz nach oben, er spielt dann sofort. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
 
 > Handy und PC müssen im selben Netzwerk sein. Die Fernbedienung nutzt Port 80 – der ist auch in abgeschotteten WLANs meist offen. „Neuen QR-Code erzeugen“ sperrt alle bisherigen Handys aus.
+
+### Auf Lautsprecher streamen (Chromecast und DLNA)
+
+Unten rechts neben der Lautstärke auf das **Cast-Symbol** klicken. Das Radio sucht Lautsprecher im Netzwerk: Chromecast, Google-/Nest-Lautsprecher und Fernseher mit Chromecast sowie DLNA/UPnP-Geräte wie alle WiiM-Modelle (auch der WiiM Mini) und viele AV-Receiver. Gerät antippen, fertig.
+
+- Der Lautsprecher holt den Stream selbst, in voller Qualität. Der PC bleibt solange stumm und zeigt weiter Titel, Cover und Queue.
+- Lautstärke, Pause, Weiter und Senderwechsel steuern den Lautsprecher – auch übers Handy, im Room und aus Home Assistant.
+- **„Diesem PC“** holt den Ton zurück. Beendet man das Radio, hört auch der Lautsprecher auf.
+
+> Das geht für Radiosender und YouTube. Spotify, AirPlay und Bluetooth kommen nur am PC an; solange sie laufen, wartet der Lautsprecher. PC und Lautsprecher müssen im selben Netzwerk sein.
+
+### Home Assistant
+
+Das Radio lässt sich als Mediaplayer in [Home Assistant](https://www.home-assistant.io/) einbinden: Play/Pause, Weiter/Zurück, Lautstärke, Sender und gespeicherte YouTube-Einträge als Quelle, Titel und Cover.
+
+1. Am Radio die **Handy-Fernbedienung** auf „Öffentlich“ oder „Sicher“ stellen.
+2. Die Integration installieren – per [HACS](https://hacs.xyz/): **HACS → ⋮ → Benutzerdefinierte Repositories**, `https://github.com/DRLohse2004/radio-player` als Typ „Integration“ hinzufügen und „Radio“ herunterladen. Ohne HACS den Ordner `custom_components/radio_player` aus diesem Repository nach `config/custom_components/` kopieren. Danach Home Assistant neu starten.
+3. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Radio**, die Adresse des PCs eintragen (steht im Fernbedienungs-Fenster) und optional die Admin-PIN für alle Rechte. Ist der Zugang „Sicher“, fragt Home Assistant nach der Zugangs-PIN oder dem Code, der dann groß am Radio erscheint.
+
+Ohne Admin-PIN gelten die Regeln für Gäste aus dem Fernbedienungs-Fenster.
 
 ### Rooms: mehrere Radios zusammen
 

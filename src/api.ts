@@ -97,6 +97,13 @@ const browserApi: RadioApi = {
   onBtEvent() {
     return () => {};
   },
+  async castDiscover() {
+    return [];
+  },
+  async castFollow() {},
+  onCastEvent() {
+    return () => {};
+  },
   async openExternal(url) {
     window.open(url, '_blank', 'noopener');
   },

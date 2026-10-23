@@ -16,6 +16,8 @@ Für Nutzer siehe [README.md](README.md). Diese Datei richtet sich an alle, die 
 | Spotify Connect | [go-librespot](https://github.com/devgianlu/go-librespot) v0.10.3 als Hilfsprozess |
 | AirPlay-Empfang | eigener AirPlay-1-Empfänger (RAOP) in `electron/airplay/`, Bonjour über `multicast-dns` |
 | Fernbedienung | Webserver im Hauptprozess (Port 80), Handy-Seite ohne Build, Server-Sent Events, QR per `qrcode` |
+| Chromecast / DLNA | eigener Cast-Sender (CASTV2 über TLS, Default Media Receiver) in `electron/cast.cjs`, DLNA/UPnP (SSDP + SOAP) in `electron/dlna.cjs` |
+| Home Assistant | Integration `custom_components/radio_player` (Python, HACS) über die Fernbedienungs-API |
 | Bluetooth-Empfang | eigenes C#-Hilfsprogramm `bt-receiver.exe` (Windows-API `AudioPlaybackConnection`) |
 
 ## Entwicklung
@@ -54,6 +56,9 @@ electron/youtube.cjs   Ruft yt-dlp auf (Infos, Playlists, Audio-Adresse) und akt
 electron/airplay.cjs   Startet/stoppt den AirPlay-Empfänger und reicht Ton und Titelinfos weiter
 electron/airplay/      raop.cjs (RTSP/RTP, Krypto), mdns.cjs (Bonjour), alac.cjs (Apple-Lossless-Decoder),
                        airport-key.cjs (öffentlich bekannter AirPort-Schlüssel)
+electron/cast.cjs      Chromecast: Geräte suchen (mDNS), Default Media Receiver starten, der Wiedergabe folgen;
+                       verteilt an dlna.cjs, cast-media.cjs (Adresse/Format für den Lautsprecher)
+electron/dlna.cjs      DLNA/UPnP-Lautsprecher: SSDP-Suche, Gerätebeschreibung, AVTransport/RenderingControl
 electron/preload.cjs   Schnittstelle window.radioApi für die Oberfläche
 src/App.tsx            Wiedergabe-Logik, Reiter, welche Quelle in der Mitte steht, Layout
 src/layout.css         Schwebende Seitenleiste, YouTube-Liste
@@ -72,6 +77,8 @@ src/bluetooth.ts       React-Hook für den Bluetooth-Empfang
 src/airplay.ts         React-Hook und AudioWorklet-Wiedergabe für AirPlay
 src/remote.ts          React-Hook der Fernbedienung: Befehle ausführen, Wunschliste, Zustand senden
 src/room.ts            React-Hooks für Rooms: Verbindung zum Host, Mithören (Radio/YouTube)
+src/cast.ts            React-Hook für Chromecast: gewähltes Gerät, schickt den Wunschzustand an cast.cjs
+custom_components/radio_player/  Home-Assistant-Integration (Mediaplayer, Einrichtung, API-Zugriff)
 src/youtube.ts         React-Hook für YouTube: Warteschlange, hls.js, Vorab-Auflösen, Wiederaufnahme
 vendor/yt-dlp/         yt-dlp.exe (Herkunft siehe HERKUNFT.md)
 docs/screenshots/      Bilder für die README
@@ -167,6 +174,46 @@ anspricht. So kommt sie auch durch Netze, in denen nur Port 80 offen ist.
   blendet beim Einschalten den Reiter ein. `allowed()` lässt ihn nur für Admins durch.
 - Ein pausierter YouTube-Titel zählt als aktive Quelle – „Play“ vom Handy oder Gast setzt ihn fort, statt das Radio zu
   starten.
+
+### Chromecast
+
+Das Radio übergibt nur die Adresse, das Gerät holt den Stream selbst (Default Media Receiver `CC1AD845`).
+
+- **Suche:** mDNS-Anfrage `_googlecast._tcp.local` auf jeder Netzwerkkarte (`pickInterfaces` wie bei AirPlay), 2,5 s;
+  Name aus TXT `fn`, Modell aus `md`.
+- **Protokoll:** TLS auf Port 8009 (selbst signiert, daher ohne Zertifikatsprüfung), CastMessage-Protobuf mit
+  4-Byte-Länge, Inhalt JSON. `encode`/`decode` kennen nur die nötigen Felder. Herzschlag PING/PONG alle 5 s.
+- **Folgen:** Die Oberfläche schickt bei jeder Änderung `cast:follow` mit dem `HostListen`-Zustand (wie fürs
+  Mithören im Room), Play/Pause, Lautstärke und Titel. `cast.cjs` gleicht ab: `LAUNCH` → `CONNECT` zur App →
+  `LOAD` bei neuer Adresse (YouTube: vorher `youtube.resolve`, Startposition wie beim Mithören),
+  `PLAY`/`PAUSE`, `SET_VOLUME`. Spotify/AirPlay/Bluetooth (`kind: 'none'`) beenden die App am Gerät.
+- Die eigene Wiedergabe läuft stumm weiter (Gain 0) und bleibt Taktgeber für Titel, Queue und Songende. Bei
+  YouTube schickt die Oberfläche alle 5 s die Position; liegt das Gerät mehr als 3 s daneben, folgt `SEEK`.
+- Übernimmt jemand anderes das Gerät oder bricht die Verbindung ab, meldet `cast:event` `off` – die Oberfläche
+  wählt wieder „Diesem PC“, der Ton kommt zurück. Beim Beenden stoppt das Radio die App am Gerät.
+- Titel-Updates von Radiosendern (ICY) erreichen das Gerät nicht; es zeigt Sendername und Logo.
+- Test: `test/cast.test.ts` spielt einen Chromecast mit eigenem TLS-Server nach (braucht `openssl`).
+
+**DLNA/UPnP** (`electron/dlna.cjs`, z. B. WiiM Mini): SSDP `M-SEARCH` nach `AVTransport:1` auf jeder Netzwerkkarte,
+dann die Gerätebeschreibung (`LOCATION`) lesen: `friendlyName`, `modelName`, `UDN` und die `controlURL` von
+AVTransport und RenderingControl. Kann ein Gerät beides, zählt nur Chromecast (gleiche IP). Abgleich wie bei
+Chromecast, aber per SOAP und nacheinander (eine Kette, der neueste Wunsch gewinnt): `SetVolume` (0–100),
+`SetAVTransportURI` mit DIDL-Lite-Metadaten, `Play`/`Pause`/`Stop`; bei YouTube `GetPositionInfo` und `Seek`
+ab 3 s Abweichung. Schlägt ein Aufruf fehl, meldet `cast:event` `off` und der Ton kommt zurück an den PC.
+Test: `test/dlna.test.ts` gegen einen nachgebauten Renderer.
+
+### Home Assistant
+
+`custom_components/radio_player` (über HACS installierbar, `hacs.json` im Wurzelordner) nutzt dieselbe
+Schnittstelle wie die Handy-Fernbedienung, als Gerät `x-kind: phone` mit Namen „Home Assistant“:
+
+- Einrichtung (`config_flow.py`): `/api/room` prüft die Adresse (ohne Port werden 80, 8080, 8000 probiert),
+  `/api/join` holt den Geräteschlüssel – öffentlich sofort, gesichert mit Join-PIN oder Einmalcode (beim Öffnen des
+  Schritts wird ein Code angefordert). Optional Admin-PIN; das Token holt `api.py` nach einem Neustart des Radios neu.
+- `media_player.py`: fragt `/api/state` alle 5 s ab und schickt Befehle über `/api/command` (`toggle`, `next`,
+  `prev`, `volume`, `station`, `youtubeItem`). Quellen: Sender und gespeicherte YouTube-Einträge („YouTube: …“).
+- Wird der Schlüssel am Radio erneuert („Neuen QR-Code erzeugen“), die Integration neu einrichten.
+- Test (lokal, nicht in der CI): `test/home_assistant/` mit `pytest-homeassistant-custom-component`.
 
 ### Portable .exe und Starter
 

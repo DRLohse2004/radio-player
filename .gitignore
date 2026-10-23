@@ -20,3 +20,5 @@ native/**/obj/
 
 # Lokale Einstellungen der Entwicklungsumgebung
 .claude/
+
+__pycache__/

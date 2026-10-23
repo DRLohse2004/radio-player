@@ -8,6 +8,7 @@ const spotify = require('./spotify.cjs');
 const bluetooth = require('./bluetooth.cjs');
 const airplay = require('./airplay.cjs');
 const youtube = require('./youtube.cjs');
+const cast = require('./cast.cjs');
 const remote = require('./remote.cjs');
 const room = require('./room.cjs');
 const updater = require('./updater.cjs');
@@ -590,6 +591,9 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('airplay:start', (_event, name) => airplay.start(name));
     ipcMain.handle('airplay:stop', () => airplay.stop());
     ipcMain.handle('airplay:state', () => airplay.getState());
+    cast.setSender((channel, payload) => sendToRenderer(channel, payload));
+    ipcMain.handle('cast:discover', () => cast.discover());
+    ipcMain.handle('cast:follow', (_event, target) => cast.follow(target ?? null));
     ipcMain.handle('youtube:info', (_event, url) => youtube.info(String(url)));
     ipcMain.handle('youtube:search', (_event, query) => youtube.search(String(query)));
     ipcMain.handle('youtube:playlist', async (_event, id) => (await youtube.playlist(String(id))).entries);
@@ -628,6 +632,7 @@ if (!app.requestSingleInstanceLock()) {
   // Beim Beenden AirPlay ordentlich abmelden (sonst behalten Bonjour-Gateways den Eintrag ~75 min)
   let airplayStopped = false;
   app.on('will-quit', (event) => {
+    cast.follow(null);
     spotify.killSync();
     bluetooth.killSync();
     if (!airplayStopped && airplay.isRunning()) {

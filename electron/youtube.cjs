@@ -128,6 +128,7 @@ async function resolve(url) {
     url: format.url ?? j.url,
     hls: /m3u8/.test(format.protocol ?? '') || /\.m3u8|hls_playlist/.test(format.url ?? ''),
     live: !!j.is_live,
+    ext: format.ext ?? j.ext ?? null,
     title: cleanTitle(j) || url,
     channel: j.channel ?? j.uploader ?? null,
     thumbnail: j.id ? `https://i.ytimg.com/vi/${j.id}/maxresdefault.jpg` : bestThumbnail(j),

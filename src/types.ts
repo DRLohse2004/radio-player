@@ -123,6 +123,36 @@ export type HostListen =
   | { kind: 'youtube'; url: string; live: boolean; position: number; at: number }
   | { kind: 'none'; reason: string };
 
+export interface CastDevice {
+  id: string;
+  name: string;
+  model: string;
+  host: string;
+  port: number;
+  kind: 'cast' | 'dlna';
+  /** DLNA: Steueradressen für AVTransport und RenderingControl */
+  avTransport?: string;
+  rendering?: string | null;
+}
+
+/** Was auf dem Cast-Gerät laufen soll – es folgt der eigenen Wiedergabe */
+export interface CastTarget {
+  device: CastDevice;
+  media: HostListen;
+  playing: boolean;
+  volume: number;
+  title: string | null;
+  artist: string | null;
+  cover: string | null;
+  station: string;
+}
+
+export interface CastEvent {
+  state: 'connecting' | 'buffering' | 'playing' | 'paused' | 'idle' | 'error' | 'off';
+  device: string | null;
+  error?: string;
+}
+
 export interface UpdateState {
   status: 'idle' | 'checking' | 'current' | 'available' | 'downloading' | 'ready' | 'error';
   current: string;
@@ -418,6 +448,9 @@ export interface RadioApi {
   airplayState(): Promise<{ running: boolean; name: string; interfaces: { name: string; address: string }[]; error: string | null }>;
   onAirplayEvent(callback: (event: AirPlayEvent) => void): () => void;
   onAirplayAudio(callback: (pcm: Int16Array) => void): () => void;
+  castDiscover(): Promise<CastDevice[]>;
+  castFollow(target: CastTarget | null): Promise<void>;
+  onCastEvent(callback: (event: CastEvent) => void): () => void;
   updateState(): Promise<UpdateState>;
   updateCheck(): Promise<UpdateState>;
   updateInstall(): Promise<boolean>;

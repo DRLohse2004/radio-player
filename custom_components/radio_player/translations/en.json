@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Radio",
+        "description": "On the radio, set the phone remote to “Public” or “Secure”. The address is shown in the remote window.",
+        "data": { "host": "Radio address (e.g. 192.168.1.50 or 192.168.1.50:8080)", "admin_pin": "Admin PIN (optional, full rights)" }
+      },
+      "join": {
+        "title": "Access to “{name}”",
+        "description": "The radio is secured. Enter the join PIN or the code now shown on the radio (valid for 2 minutes).",
+        "data": { "pin": "PIN or code" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Radio not reachable. Is it running with the phone remote enabled?",
+      "closed": "The phone remote is switched off on the radio.",
+      "invalid_pin": "Wrong PIN or code.",
+      "invalid_admin_pin": "Wrong admin PIN."
+    },
+    "abort": { "already_configured": "This radio is already set up." }
+  }
+}
