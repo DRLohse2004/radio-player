@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { api, DEFAULT_STATIONS, isDesktop, newStationId } from './api';
 import { attachToGraph, connectAudio, type AudioGraph } from './audio';
 import { FullscreenView } from './components/FullscreenView';
-import { ExpandIcon, HeartIcon, HistoryIcon, PhoneIcon, RoomIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './components/Icons';
+import { ExpandIcon, HeartIcon, HistoryIcon, RoomIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './components/Icons';
 import { LibraryPanel } from './components/LibraryPanel';
 import { Controls, Cover, STATUS_TEXT, TrackInfo } from './components/Player';
 import { KindBadge } from './components/Segment';
@@ -17,9 +17,8 @@ import { CastButton } from './components/CastButton';
 import { isPlaylist, nextTrack, topTrack } from './queue';
 import { migrateRemote, newRemoteKey, useRemote } from './remote';
 import { newClientId, useRoom } from './room';
-import { RoomDialog } from './components/RoomDialog';
+import { RoomsDialog } from './components/RoomsDialog';
 import { RoomView } from './components/RoomView';
-import { RemoteDialog } from './components/RemoteDialog';
 import { StartupStatus, type StartupItem } from './components/StartupStatus';
 import { UpdateBanner, useUpdate } from './components/UpdateBanner';
 import { useBluetooth } from './bluetooth';
@@ -127,7 +126,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
-  const [remoteOpen, setRemoteOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
   // Einmalcode für ein Gerät, das sich im sicheren Modus verbinden will – groß anzeigen, bis es geklappt hat
   const [joinCode, setJoinCode] = useState<{ code: string; name: string; kind: 'phone' | 'radio' } | null>(null);
@@ -1214,7 +1212,7 @@ export default function App() {
   const visibleTabs = TABS.filter((t) => prefs.tabs[t.id]);
 
   keyRef.current = (e: KeyboardEvent) => {
-    if (editing || settingsOpen || storeOpen || remoteOpen || roomOpen || joined) return;
+    if (editing || settingsOpen || storeOpen || roomOpen || joined) return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     const key = e.key;
     if (key === 'F11') {
@@ -1451,19 +1449,12 @@ export default function App() {
               <HistoryIcon size={20} />
             </button>
             <button
-              className={`icon-button${prefs.remote.enabled ? ' active' : ''}`}
-              onClick={() => setRemoteOpen(true)}
-              title="Fernsteuern lassen: Handys, andere Radios und Home Assistant"
-            >
-              <PhoneIcon size={20} />
-              {remote.clients.some((c) => c.online) && <span className="badge-dot" />}
-            </button>
-            <button
-              className={`icon-button${prefs.room.join ? ' active' : ''}`}
+              className={`icon-button${prefs.remote.enabled || prefs.room.join ? ' active' : ''}`}
               onClick={() => setRoomOpen(true)}
-              title="Room: ein anderes Radio fernsteuern oder mithören"
+              title="Rooms: fernsteuern lassen oder ein anderes Radio fernsteuern"
             >
               <RoomIcon size={20} />
+              {remote.clients.some((c) => c.online) && <span className="badge-dot" />}
             </button>
             <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Einstellungen (,)">
               <SettingsIcon size={20} />
@@ -1647,18 +1638,6 @@ export default function App() {
         />
       )}
 
-      {remoteOpen && (
-        <RemoteDialog
-          prefs={prefs.remote}
-          info={remote.info}
-          clients={remote.clients}
-          name={prefs.room.name}
-          defaultName={`Radio ${hostname}`}
-          onName={(name) => setRoom({ name })}
-          onChange={(remotePrefs) => setPrefs((p) => ({ ...p, remote: remotePrefs }))}
-          onClose={() => setRemoteOpen(false)}
-        />
-      )}
 
       {joinCode && (
         <div className="modal-backdrop join-code" onMouseDown={(e) => e.target === e.currentTarget && setJoinCode(null)}>
@@ -1678,10 +1657,14 @@ export default function App() {
         </div>
       )}
       {roomOpen && (
-        <RoomDialog
-          prefs={prefs.room}
+        <RoomsDialog
+          remote={prefs.remote}
+          room={prefs.room}
+          info={remote.info}
+          clients={remote.clients}
           defaultName={`Radio ${hostname}`}
-          onChange={setRoom}
+          onRemote={(remotePrefs) => setPrefs((p) => ({ ...p, remote: remotePrefs }))}
+          onRoom={setRoom}
           onClose={() => setRoomOpen(false)}
         />
       )}

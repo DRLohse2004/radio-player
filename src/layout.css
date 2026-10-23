@@ -1257,3 +1257,97 @@
 .cast-error {
   color: var(--warn);
 }
+
+/* ---------- Rooms ---------- */
+.modal.settings.rooms-dialog {
+  width: min(980px, 100%);
+}
+.rooms-pane .remote-connect {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin: 0;
+}
+.rooms-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .rooms-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.rooms-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.rooms-pane + .rooms-pane {
+  border-left: 1px solid var(--border);
+  padding-left: 28px;
+}
+@media (max-width: 760px) {
+  .rooms-pane + .rooms-pane {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+  }
+}
+.rooms-pane h3 {
+  margin: 0;
+}
+.rooms-more {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.rooms-more[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rooms-more summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+button.room-host-row {
+  width: 100%;
+  text-align: left;
+  border-radius: 10px;
+  color: var(--text);
+}
+button.room-host-row:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+button.room-host-row:disabled {
+  opacity: 0.5;
+}
+.join-pin {
+  z-index: 60;
+}
+.join-pin-box {
+  width: min(380px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+}
+.join-pin-box h2 {
+  margin: 0;
+}
+.join-pin-box input {
+  font-size: 22px;
+  letter-spacing: 4px;
+  text-align: center;
+}
+.join-pin-actions {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
