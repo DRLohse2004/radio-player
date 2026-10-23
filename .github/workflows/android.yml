@@ -1,0 +1,49 @@
+# Baut die Android-App. Bei einem veröffentlichten Release hängt sie als Radio.apk daran –
+# daran erkennt der Updater der App neue Versionen.
+name: Android
+
+on:
+  push:
+    paths: ['android/**', '.github/workflows/android.yml', 'package.json']
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Version aus package.json
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      - name: Signaturschlüssel
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/radio.p12"
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/radio.p12" >> "$GITHUB_ENV"
+          fi
+      - name: APK bauen
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: gradle -p android assembleRelease testReleaseUnitTest -PversionName="$VERSION" --no-daemon
+      - run: cp android/app/build/outputs/apk/release/app-release.apk Radio.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Radio-apk
+          path: Radio.apk
+      - name: An das Release hängen
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" Radio.apk --clobber
