@@ -128,10 +128,12 @@ abschotten, lassen oft nur diesen Port durch. Die App bleibt die Quelle der Wahr
   Hauptprozess, der ihn per Server-Sent Events (`/api/events`) an alle Handys verteilt.
 - Befehle (`/api/command`, `/api/wish`) gehen als `remote:command` an die Oberfläche, die mit `remote:reply` antwortet.
   Die Wunsch-Regeln (pro Person, Höchstlänge, doppelte Songs) prüft `src/remote.ts`, die Gast-Rechte der Server.
-- Zugang je Art (Handy: `remote.enabled`/`remote.secure`, Radio: `room.open`/`room.secure`) – `off`, `public` oder `secure`.
+- Ein Zugang für alle (`remote.enabled`/`remote.secure`: `off`, `public` oder `secure`) – Handys, Radios und Home Assistant.
+  Bis 1.13 hatte der Room-Host eigene Felder (`room.open`/`room.secure`); `migrateRemote` übernimmt sie beim Laden.
   Öffentlich genügt der Schlüssel `k` aus dem QR-Code. Sicher tauscht `POST /api/join` die Zugangs-PIN (`remote.joinPin`) oder
-  einen Einmalcode (6 Ziffern, 2 Minuten, nur für die anfragende Gerätekennung; der Host zeigt ihn über `remote:code`)
-  gegen einen Geräteschlüssel `HMAC(remote.key, clientId)` – ohne Speicher prüfbar und gültig, bis der QR-Schlüssel wechselt.
+  einen Einmalcode (6 Ziffern, 2 Minuten, nur für die anfragende Gerätekennung; der Host zeigt ihn über `remote:code`).
+  Gäste fordern den Code gleich beim Öffnen des Beitreten-Dialogs an; er verschwindet, sobald dieses Gerät beigetreten ist
+  (auch per PIN). PIN bzw. Code werden getauscht gegen einen Geräteschlüssel `HMAC(remote.key, clientId)` – ohne Speicher prüfbar und gültig, bis der QR-Schlüssel wechselt.
   Fehlversuche zählen zusammen mit der Admin-PIN (max. 5 pro Minute und IP). Test: `test/remote-access.test.ts`.
 - Schlüssel `k` aus dem QR-Code: Einstellung `remote.key`, „Neuen QR-Code erzeugen“ wechselt ihn und sperrt alle Geräte aus. Admin per
   PIN (`/api/admin`, max. 5 Versuche pro Minute und IP) – das Token gilt bis zum Neustart oder bis die PIN wechselt.
@@ -152,7 +154,7 @@ abschotten, lassen oft nur diesen Port durch. Die App bleibt die Quelle der Wahr
 Ein Room ist die Fernbedienung für andere Radios – dieselbe HTTP-Schnittstelle wie fürs Handy, nur dass ein Radio sie
 anspricht. So kommt sie auch durch Netze, in denen nur Port 80 offen ist.
 
-- **Host:** `room.open` startet den Webserver der Fernbedienung (auch ohne Handy-Fernbedienung). `GET /api/room`
+- **Host:** derselbe Webserver und Zugang wie die Handy-Fernbedienung („Fernsteuern lassen“). `GET /api/room`
   (ohne Schlüssel) liefert `{ app: 'radio', name, version, open, secure, listeners }` und – nur wenn der Room öffentlich ist –
   den Schlüssel; ist er gesichert, tritt das Radio per `/api/join` (PIN oder Einmalcode) bei. Radios melden sich mit `x-kind: radio` und erscheinen getrennt von Handys.
 - **Finden:** `electron/room.cjs` fragt im eigenen /24-Netz jeder Netzwerkkarte `/api/room` auf Port 80 und 8080 ab

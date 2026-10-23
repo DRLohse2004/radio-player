@@ -1,26 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, isDesktop } from '../api';
-import { accessOf } from '../remote';
-import type { RemoteClient, RemoteInfo, RoomHost, RoomPrefs } from '../types';
-import { AccessChoice } from './AccessChoice';
+import type { RoomHost, RoomPrefs } from '../types';
 import { CloseIcon, RoomIcon } from './Icons';
 
 interface Props {
   prefs: RoomPrefs;
   defaultName: string;
-  info: RemoteInfo;
-  clients: RemoteClient[];
   onChange(patch: Partial<RoomPrefs>): void;
   onClose(): void;
 }
 
-export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClose }: Props) {
+export function RoomDialog({ prefs, defaultName, onChange, onClose }: Props) {
   const [hosts, setHosts] = useState<RoomHost[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [address, setAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState(prefs.name);
-  useEffect(() => setName(prefs.name), [prefs.name]);
   // Gesicherter Host: erst PIN oder Einmalcode, dann beitreten
   const [secureJoin, setSecureJoin] = useState<{ host: RoomHost; mode: RoomPrefs['mode']; value: string; busy: boolean; codeSent: boolean } | null>(null);
   const [networks, setNetworks] = useState(prefs.networks);
@@ -47,9 +41,9 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
     return value;
   };
 
-  // Beim Öffnen gleich suchen – außer man ist selbst Host oder schon drin
+  // Beim Öffnen gleich suchen – außer man ist schon drin
   useEffect(() => {
-    if (!prefs.open && !prefs.join && isDesktop) scan(prefs.networks);
+    if (!prefs.join && isDesktop) scan(prefs.networks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -61,13 +55,20 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
     if (host.secure) {
       setError(null);
       setSecureJoin({ host, mode, value: '', busy: false, codeSent: false });
+      // Der Code erscheint gleich am Host – PIN bleibt als Alternative
+      requestCode(host);
       return;
     }
-    onChange({ join: { url: host.url, key: host.key, name: host.name }, mode, open: false });
+    onChange({ join: { url: host.url, key: host.key, name: host.name }, mode });
     onClose();
   };
 
   const myName = prefs.name.trim() || defaultName;
+  const requestCode = async (host: RoomHost) => {
+    const result = await api.roomJoin({ url: host.url, clientId: prefs.clientId, name: myName, request: true });
+    setSecureJoin((s) => (s && s.host.url === host.url ? { ...s, codeSent: result.status === 200 } : s));
+    if (result.status !== 200) setError(result.body?.error ?? 'Der Host antwortet nicht.');
+  };
   const sendSecure = async (request: boolean) => {
     if (!secureJoin) return;
     setSecureJoin({ ...secureJoin, busy: true });
@@ -87,7 +88,7 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
       setSecureJoin({ ...secureJoin, busy: false, codeSent: true });
     } else {
       const { host, mode } = secureJoin;
-      onChange({ join: { url: host.url, key: String(result.body.key), name: host.name }, mode, open: false });
+      onChange({ join: { url: host.url, key: String(result.body.key), name: host.name }, mode });
       onClose();
     }
   };
@@ -99,13 +100,11 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
     else join(host, 'listen');
   };
 
-  const radios = clients.filter((c) => c.online && c.kind === 'radio');
-
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal settings room-dialog">
         <header className="modal-header">
-          <h2>Room</h2>
+          <h2>Room beitreten</h2>
           <button type="button" className="icon-button" onClick={onClose} title="Schließen">
             <CloseIcon size={18} />
           </button>
@@ -142,52 +141,10 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
           ) : (
             <>
               <section className="settings-section">
-                <h3>Dieses Radio ist der Host</h3>
-                <p className="muted small">
-                  Andere Radios finden dieses Radio im Netz und können mithören oder es fernsteuern. Gut für den PC, an dem die
-                  Lautsprecher hängen.
-                </p>
-                <AccessChoice
-                  value={accessOf(prefs.open, prefs.secure)}
-                  onChange={(mode) => onChange(mode === 'off' ? { open: false } : { open: true, secure: mode === 'secure' })}
-                />
-                {prefs.open && prefs.secure && (
-                  <p className="muted small">Die Zugangs-PIN legen Sie unter „Fernbedienung übers Handy“ fest – ohne PIN geht es nur per Einmalcode.</p>
-                )}
-                {prefs.open && (
-                  <>
-                    <label className="field">
-                      <span>Name des Rooms</span>
-                      <input
-                        value={name}
-                        maxLength={40}
-                        placeholder={defaultName}
-                        onChange={(e) => setName(e.target.value)}
-                        onBlur={() => name !== prefs.name && onChange({ name: name.trim() })}
-                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                      />
-                    </label>
-                    {info.error ? (
-                      <p className="error-text">{info.error}</p>
-                    ) : (
-                      <p className="muted small">
-                        {info.running
-                          ? `Erreichbar unter ${info.addresses?.map((a) => a.address + (info.port === 80 ? '' : `:${info.port}`)).join(', ')}. `
-                          : 'Startet … '}
-                        {radios.length === 0 ? 'Noch kein Radio verbunden.' : `Verbunden: ${radios.map((c) => c.name).join(', ')}`}
-                      </p>
-                    )}
-                    <p className="muted small">
-                      Was Gäste dürfen (Lautstärke, Weiter, Sender, Wünsche), stellen Sie unter „Fernbedienung übers Handy“ ein – es gilt für
-                      Handys und Radios gleich.
-                    </p>
-                  </>
-                )}
-              </section>
-
-              {!prefs.open && (
-                <section className="settings-section">
-                  <h3>Einem Room beitreten</h3>
+                  <p className="muted small">
+                    Ein anderes Radio im Netz mithören oder fernsteuern. Damit andere dieses Radio steuern können, oben auf das
+                    Handy-Symbol („Fernsteuern lassen“).
+                  </p>
                   <div className="room-hosts">
                     {scanning && <p className="muted small">Suche Radios im Netz …</p>}
                     {!scanning && hosts?.length === 0 && (
@@ -247,8 +204,7 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
                   {secureJoin && (
                     <div className="room-secure">
                       <p className="muted small">
-                        „{secureJoin.host.name}“ ist gesichert. Zugangs-PIN eingeben – oder einen Einmalcode anfordern, der dann groß auf dem
-                        Host erscheint.
+                        „{secureJoin.host.name}“ ist gesichert. Den Code eingeben, der jetzt groß am Host steht – oder die Zugangs-PIN.
                       </p>
                       <div className="room-address">
                         <input
@@ -264,13 +220,12 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
                         </button>
                       </div>
                       <button className="mini" disabled={secureJoin.busy} onClick={() => sendSecure(true)}>
-                        {secureJoin.codeSent ? 'Neuen Code anfordern' : 'Code am Host anzeigen'}
+                        {secureJoin.codeSent ? 'Neuen Code anzeigen' : 'Code am Host anzeigen'}
                       </button>
                     </div>
                   )}
                   {error && <p className="error-text">{error}</p>}
                 </section>
-              )}
             </>
           )}
         </div>

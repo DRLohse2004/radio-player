@@ -140,10 +140,12 @@ Sobald das Handy verbunden ist, wechselt das Radio automatisch in diesen Reiter.
 
 ### Fernbedienung übers Handy
 
+Ein Zugang für alle: Handys, andere Radios (Rooms) und Home Assistant verbinden sich über dasselbe Fenster **„Fernsteuern lassen“** und es gelten dieselben Regeln.
+
 1. Oben rechts auf das **Handy-Symbol** klicken und den Zugang wählen:
    - **Aus** – niemand kann sich verbinden.
    - **Öffentlich** – wer den QR-Code scannt, ist drin.
-   - **Sicher** – das Handy braucht zusätzlich die **Zugangs-PIN** oder einen **Einmalcode**: Beim Verbinden auf „Code am Radio anzeigen“ tippen, dann erscheint der Code groß auf dem Radio und verschwindet wieder, sobald das Handy verbunden ist. Ein Handy muss das nur einmal machen.
+   - **Sicher** – beim Verbinden erscheint sofort ein **Einmalcode** groß auf dem Radio; den am Handy eintippen (oder die **Zugangs-PIN**). Der Code verschwindet, sobald das Handy verbunden ist. Ein Handy muss das nur einmal machen.
 2. Fragt Windows nach einer **Firewall-Freigabe** für „Radio“, für Ihr Netzwerk erlauben.
 3. Den **QR-Code** mit dem Handy scannen – die Fernbedienung öffnet sich im Browser. Über „Zum Home-Bildschirm“ wird daraus eine App.
 
@@ -153,7 +155,7 @@ Am Handy gibt es:
 - **Sender:** antippen, und er spielt.
 - **Queue:** Song, Interpret, Playlist oder einen YouTube-Link suchen und mit **„+“** in die Queue setzen. Eine Playlist klappt beim Antippen ihre Songs zum einzelnen Wünschen auf; **„Alle“** setzt die ganze Playlist als einen Eintrag in die Queue. Oben steht, was gerade läuft; Wünsche stellen sich hinten an. Läuft gar nichts, startet ein Wunsch sofort; läuft das Radio, startet „Jetzt spielen“ die Queue.
 
-Im Fernbedienungs-Fenster am PC legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren – auch die Songs einer aufgeklappten Playlist; **„↥“** holt einen Song ganz nach oben, er spielt dann sofort. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
+Im Fenster „Fernsteuern lassen“ legen Sie fest, was alle dürfen (Lautstärke, Pause/Weiter, Sender), wie viele offene Wünsche jeder haben darf und wie lang ein Song höchstens sein darf. Mit einer **Admin-PIN** darf man am Handy zusätzlich fremde Wünsche löschen und am Griff **≡** per Finger umsortieren – auch die Songs einer aufgeklappten Playlist; **„↥“** holt einen Song ganz nach oben, er spielt dann sofort. Auf Wunsch zeigt das Vollbild den QR-Code klein unten links.
 
 > Handy und PC müssen im selben Netzwerk sein. Die Fernbedienung nutzt Port 80 – der ist auch in abgeschotteten WLANs meist offen. „Neuen QR-Code erzeugen“ sperrt alle bisherigen Handys aus.
 
@@ -173,15 +175,15 @@ Das Radio lässt sich als Mediaplayer in [Home Assistant](https://www.home-assis
 
 1. Am Radio die **Handy-Fernbedienung** auf „Öffentlich“ oder „Sicher“ stellen.
 2. Die Integration installieren – per [HACS](https://hacs.xyz/): **HACS → ⋮ → Benutzerdefinierte Repositories**, `https://github.com/DRLohse2004/radio-player` als Typ „Integration“ hinzufügen und „Radio“ herunterladen. Ohne HACS den Ordner `custom_components/radio_player` aus diesem Repository nach `config/custom_components/` kopieren. Danach Home Assistant neu starten.
-3. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Radio**, die Adresse des PCs eintragen (steht im Fernbedienungs-Fenster) und optional die Admin-PIN für alle Rechte. Ist der Zugang „Sicher“, fragt Home Assistant nach der Zugangs-PIN oder dem Code, der dann groß am Radio erscheint.
+3. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Radio**, die Adresse des PCs eintragen (steht im Fenster „Fernsteuern lassen“) und optional die Admin-PIN für alle Rechte. Ist der Zugang „Sicher“, fragt Home Assistant nach der Zugangs-PIN oder dem Code, der dann groß am Radio erscheint.
 
-Ohne Admin-PIN gelten die Regeln für Gäste aus dem Fernbedienungs-Fenster.
+Ohne Admin-PIN gelten die Regeln für Gäste aus dem Fenster „Fernsteuern lassen“.
 
 ### Rooms: mehrere Radios zusammen
 
-Ein Radio ist der **Host** – meist der PC, an dem die Lautsprecher hängen. Dort oben rechts auf das **Room-Symbol** klicken und den Zugang wählen: **Aus**, **Öffentlich** (jedes Radio im Netz darf beitreten) oder **Sicher** (beitreten nur mit der Zugangs-PIN oder dem Einmalcode, der beim Beitreten groß auf dem Host erscheint).
+Ein Radio ist der **Host** – meist der PC, an dem die Lautsprecher hängen. Dort oben rechts auf das **Handy-Symbol** („Fernsteuern lassen“) klicken und den Zugang wählen: **Aus**, **Öffentlich** (jedes Radio und Handy im Netz darf beitreten) oder **Sicher** (beim Beitreten erscheint sofort ein Einmalcode groß auf dem Host; alternativ die Zugangs-PIN).
 
-An jedem anderen Radio ebenfalls das Room-Symbol öffnen: Das Radio sucht im Netz und zeigt gefundene Rooms. Dann wählen:
+An jedem anderen Radio oben rechts das **Room-Symbol** öffnen: Das Radio sucht im Netz und zeigt gefundene Rooms. Dann wählen:
 
 - **Mithören:** Das eigene Radio spielt dasselbe wie der Host – z. B. über Kopfhörer, mit eigener Lautstärke. Steigt man mitten im Song ein, setzt es an derselben Stelle ein.
 - **Nur Fernbedienung:** Kein Ton am eigenen PC; Play/Pause, Weiter, Sender, Lautstärke und Wünsche steuern den Host.
@@ -190,7 +192,7 @@ An jedem anderen Radio ebenfalls das Room-Symbol öffnen: Das Radio sucht im Net
 
 Zwischen beidem lässt sich oben in der Mitte jederzeit umschalten; das Vollbild (F11) gibt es auch im Room. Die Seitenleiste im Room sieht aus wie am Host: Sender, YouTube mit Suche und gespeicherten Einträgen; spielt der Host YouTube, steht die Queue in der Mitte. Was Gäste nicht dürfen, ist ausgegraut oder ausgeblendet; was sie dürfen, gilt wie bei der Handy-Fernbedienung. Wer sich oben in der Seitenleiste mit der **Admin-PIN** des Hosts anmeldet, kann alles wie am Host: Sender hinzufügen, bearbeiten, löschen und sortieren, den Sender-Store nutzen, YouTube-Einträge speichern und verwalten, Queue und Songs sortieren. Admins bekommen außerdem den Bereich **„Empfang“** und kann dort Spotify Connect und AirPlay am Host ein- und ausschalten. Die eigenen Einstellungen (oben rechts) bleiben auch im Room erreichbar. „Room verlassen“ bringt die eigenen Sender und Einstellungen unverändert zurück.
 
-> Findet die Suche den Host nicht (z. B. weil er in einem anderen Netz hängt), unter **„Auch in diesen Netzen suchen“** das Netz des Hosts eintragen, z. B. `10.0.11.255` oder `10.0.255.255` für alle 10.0.x.x-Netze – oder direkt seine Adresse eintragen, sie steht beim Host im Room-Fenster. Mithören geht für Radiosender und YouTube; Spotify, AirPlay und Bluetooth kommen nur beim Host an und laufen dort weiter.
+> Findet die Suche den Host nicht (z. B. weil er in einem anderen Netz hängt), unter **„Auch in diesen Netzen suchen“** das Netz des Hosts eintragen, z. B. `10.0.11.255` oder `10.0.255.255` für alle 10.0.x.x-Netze – oder direkt seine Adresse eintragen, sie steht beim Host im Fenster „Fernsteuern lassen“. Mithören geht für Radiosender und YouTube; Spotify, AirPlay und Bluetooth kommen nur beim Host an und laufen dort weiter.
 
 ### Reiter ausblenden
 

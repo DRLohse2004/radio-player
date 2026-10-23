@@ -220,10 +220,10 @@
 <div class="overlay" id="joinDialog" hidden>
   <form class="card" id="joinForm">
     <h2>Radio ist gesichert</h2>
-    <p>Gib die Zugangs-PIN ein – oder lass dir einen Code groß am Radio anzeigen.</p>
+    <p>Gib den Code ein, der jetzt groß am Radio steht – oder die Zugangs-PIN.</p>
     <input id="joinInput" inputmode="numeric" maxlength="8" placeholder="PIN oder Code" autocomplete="off">
     <div class="row">
-      <button type="button" class="btn ghost" id="joinCode">Code am Radio anzeigen</button>
+      <button type="button" class="btn ghost" id="joinCode">Neuen Code anzeigen</button>
       <button type="submit" class="btn">Verbinden</button>
     </div>
   </form>
@@ -338,10 +338,12 @@
   // --- Gesichertes Radio: PIN oder Einmalcode gegen einen eigenen Schlüssel tauschen ---
   function showJoin() {
     events?.close();
+    const wasHidden = $('joinDialog').hidden;
     $('joinDialog').hidden = false;
     setTimeout(() => $('joinInput').focus(), 50);
+    if (wasHidden) requestCode();
   }
-  $('joinCode').addEventListener('click', async () => {
+  async function requestCode() {
     try {
       await api('/api/join', { clientId, name: name || 'Gast', request: true });
       toast('Der Code steht jetzt groß am Radio.');
@@ -349,7 +351,8 @@
     } catch (err) {
       toast(err.message, true);
     }
-  });
+  }
+  $('joinCode').addEventListener('click', requestCode);
   $('joinForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const value = $('joinInput').value.replace(/[^0-9]/g, '');

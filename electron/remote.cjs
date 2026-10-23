@@ -352,7 +352,7 @@ async function join(req, res) {
     pinAttempts.set(ip, [...attempts, now]);
     return json(res, 403, { error: 'PIN oder Code falsch – ein Code gilt 2 Minuten.' });
   }
-  if (codeOk) {
+  if (codeOk || joinCode?.clientId === clientId) {
     joinCode = null;
     send('remote:code', null);
   }

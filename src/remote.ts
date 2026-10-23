@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { AccessMode, RemoteClient, RemoteCommand, RemoteInfo, RemotePrefs, Wish, WishVideo, YouTubeEntry, YouTubeItem } from './types';
+import type { AccessMode, RemoteClient, RemoteCommand, RemoteInfo, RemotePrefs, RoomPrefs, Wish, WishVideo, YouTubeEntry, YouTubeItem } from './types';
 import { moveTo } from './list';
 import { consumeTop, extractSong, moveSong, setSongs } from './queue';
 
@@ -13,6 +13,12 @@ export function newRemoteKey() {
 }
 
 /** Zugang aus den beiden Schaltern: an/aus und sicher */
+/** Bis 1.13 hatte der Room-Host einen eigenen Zugang. War nur er an, übernimmt ihn jetzt die Fernbedienung. */
+export function migrateRemote(remote: RemotePrefs, room?: Partial<RoomPrefs>): RemotePrefs {
+  if (!room?.open || remote.enabled) return remote;
+  return { ...remote, enabled: true, secure: !!room.secure, key: remote.key || newRemoteKey() };
+}
+
 export const accessOf = (on: boolean, secure: boolean): AccessMode => (on ? (secure ? 'secure' : 'public') : 'off');
 
 const newWishId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -40,7 +46,7 @@ export type RemoteSnapshot = Record<string, unknown>;
 
 export function useRemote(
   prefs: RemotePrefs,
-  room: { open: boolean; secure: boolean; name: string },
+  roomName: string,
   ready: boolean,
   snapshot: RemoteSnapshot,
   handlers: RemoteHandlers,
@@ -55,8 +61,8 @@ export function useRemote(
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
 
-  // Server starten/stoppen – er läuft auch, wenn dieses Radio nur Host eines Rooms ist
-  const serving = prefs.enabled || room.open;
+  // Ein Zugang für alle: Handys, andere Radios (Rooms) und Home Assistant
+  const serving = prefs.enabled;
   useEffect(() => {
     if (!ready) return;
     if (!serving || !prefs.key) {
@@ -68,9 +74,9 @@ export function useRemote(
       .remoteStart({
         key: prefs.key,
         pin: prefs.pin,
-        roomName: room.name,
+        roomName,
         phone: accessOf(prefs.enabled, prefs.secure),
-        room: accessOf(room.open, room.secure),
+        room: accessOf(prefs.enabled, prefs.secure),
         joinPin: prefs.joinPin,
       })
       .then((result) => {
@@ -82,7 +88,7 @@ export function useRemote(
     return () => {
       cancelled = true;
     };
-  }, [ready, serving, prefs.key, prefs.pin, prefs.enabled, prefs.secure, prefs.joinPin, room.open, room.secure, room.name]);
+  }, [ready, serving, prefs.key, prefs.pin, prefs.enabled, prefs.secure, prefs.joinPin, roomName]);
 
   useEffect(() => api.onRemoteClients(setClients), []);
 

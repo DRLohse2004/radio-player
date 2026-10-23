@@ -64,6 +64,15 @@ describe('Zugang zur Fernbedienung', () => {
     expect((await call('/api/state', { key: ok.body.key, client: 'r1', kind: 'radio' })).status).toBe(200);
   });
 
+  it('sicher: Der angezeigte Code verschwindet auch, wenn das Gerät stattdessen die PIN nimmt', async () => {
+    setup('secure', 'secure');
+    sent.length = 0;
+    await call('/api/join', { body: { clientId: 'c9', name: 'Handy', request: true } });
+    expect(sent.at(-1)?.channel).toBe('remote:code');
+    expect((await call('/api/join', { body: { clientId: 'c9', pin: '2468' } })).status).toBe(200);
+    expect(sent.at(-1)).toEqual({ channel: 'remote:code', payload: null });
+  });
+
   it('sofort spielen aus der Suche: Gäste nur, wenn sie Sender wechseln dürfen', async () => {
     setup('public', 'off');
     remote.setState({ rules: { guestVolume: true, guestSkip: true, guestStations: false, maxWishes: 3, maxMinutes: 15 } });

@@ -9,6 +9,10 @@ interface Props {
   prefs: RemotePrefs;
   info: RemoteInfo;
   clients: RemoteClient[];
+  /** Name, unter dem andere Radios und Home Assistant dieses Radio finden */
+  name: string;
+  defaultName: string;
+  onName(name: string): void;
   onChange(prefs: RemotePrefs): void;
   onClose(): void;
 }
@@ -50,8 +54,10 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
   );
 }
 
-export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props) {
+export function RemoteDialog({ prefs, info, clients, name, defaultName, onName, onChange, onClose }: Props) {
   const set = (patch: Partial<RemotePrefs>) => onChange({ ...prefs, ...patch });
+  const [roomName, setRoomName] = useState(name);
+  useEffect(() => setRoomName(name), [name]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -68,20 +74,23 @@ export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props)
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal settings remote-dialog">
         <header className="modal-header">
-          <h2>Fernbedienung übers Handy</h2>
+          <h2>Fernsteuern lassen</h2>
           <button type="button" className="icon-button" onClick={onClose} title="Schließen">
             <CloseIcon size={18} />
           </button>
         </header>
 
         <div className="modal-body">
-          <p className="muted small">Kollegen steuern das Radio im Browser ihres Handys und wünschen sich Songs von YouTube – ohne App.</p>
+          <p className="muted small">
+            Handys (QR-Code, ohne App), andere Radios (Rooms: mithören oder fernsteuern) und Home Assistant steuern dieses Radio. Für alle
+            gelten derselbe Zugang und dieselben Regeln.
+          </p>
           <AccessChoice value={accessOf(prefs.enabled, prefs.secure)} onChange={(mode) => enable(mode !== 'off', mode === 'secure')} />
           {prefs.enabled && prefs.secure && (
             <PinField
               label="Zugangs-PIN (4–8 Ziffern)"
               value={prefs.joinPin}
-              hint="Gilt für Handys und – wenn der Room gesichert ist – für andere Radios. Leer = nur per Einmalcode."
+              hint="Gilt für Handys, andere Radios und Home Assistant. Leer = nur per Einmalcode, der beim Verbinden groß hier erscheint."
               onChange={(joinPin) => set({ joinPin })}
             />
           )}
@@ -89,6 +98,18 @@ export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props)
 
           {prefs.enabled && (
             <>
+              <label className="field">
+                <span>Name im Netzwerk</span>
+                <input
+                  value={roomName}
+                  maxLength={40}
+                  placeholder={defaultName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  onBlur={() => roomName.trim() !== name && onName(roomName.trim())}
+                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                />
+                <small>So finden andere Radios und Home Assistant dieses Radio.</small>
+              </label>
               {info.error ? (
                 <p className="error-text">{info.error}</p>
               ) : info.running && main ? (
@@ -112,8 +133,8 @@ export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props)
                     )}
                     <p className="muted small">
                       {online.length === 0
-                        ? 'Gerade ist kein Handy verbunden.'
-                        : `Verbunden: ${online.map((c) => c.name).join(', ')}`}
+                        ? 'Gerade ist niemand verbunden.'
+                        : `Verbunden: ${online.map((c) => `${c.name} (${c.kind === 'radio' ? 'Radio' : 'Handy'})`).join(', ')}`}
                     </p>
                     <button className="button" onClick={() => set({ key: newRemoteKey() })}>
                       Neuen QR-Code erzeugen
@@ -186,7 +207,8 @@ export function RemoteDialog({ prefs, info, clients, onChange, onClose }: Props)
               <PhoneIcon size={40} />
               <p>
                 Nach dem Einschalten zeigt das Radio einen QR-Code. Wer ihn scannt, kann Lautstärke und Wiedergabe steuern,
-                Sender wechseln und sich Songs von YouTube wünschen.
+                Sender wechseln und sich Songs von YouTube wünschen. Andere Radios finden es unter „Room“, Home Assistant über die
+                Integration „Radio“.
               </p>
             </div>
           )}

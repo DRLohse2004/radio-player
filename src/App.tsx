@@ -15,7 +15,7 @@ import { useYouTube } from './youtube';
 import { useCast } from './cast';
 import { CastButton } from './components/CastButton';
 import { isPlaylist, nextTrack, topTrack } from './queue';
-import { newRemoteKey, useRemote } from './remote';
+import { migrateRemote, newRemoteKey, useRemote } from './remote';
 import { newClientId, useRoom } from './room';
 import { RoomDialog } from './components/RoomDialog';
 import { RoomView } from './components/RoomView';
@@ -175,8 +175,9 @@ export default function App() {
         spotify: { ...DEFAULT_PREFS.spotify, ...settings?.prefs?.spotify },
         bluetooth: { ...DEFAULT_PREFS.bluetooth, ...settings?.prefs?.bluetooth },
         airplay: { ...DEFAULT_PREFS.airplay, ...settings?.prefs?.airplay },
-        remote: { ...DEFAULT_PREFS.remote, ...settings?.prefs?.remote },
-        room: { ...DEFAULT_PREFS.room, ...settings?.prefs?.room },
+        remote: migrateRemote({ ...DEFAULT_PREFS.remote, ...settings?.prefs?.remote }, settings?.prefs?.room),
+        // Der Room-Host ist seit 1.14 Teil der Fernbedienung (siehe migrateRemote)
+        room: { ...DEFAULT_PREFS.room, ...settings?.prefs?.room, open: false },
         tabs: { ...DEFAULT_PREFS.tabs, ...settings?.prefs?.tabs },
       };
       if (!THEMES.some((t) => t.id === loadedPrefs.theme)) loadedPrefs.theme = 'standard';
@@ -1029,7 +1030,7 @@ export default function App() {
   // Auch ein pausierter YouTube-Titel zählt: Der Wunsch kommt danach, statt ihn zu verdrängen
   const anythingActive = wantPlay || !!ytNow || yt.state.status === 'loading' || spotifyPlaying || apSession || !!btDevice;
   const roomName = prefs.room.name.trim() || `Radio ${hostname}`;
-  const remote = useRemote(prefs.remote, { open: prefs.room.open, secure: prefs.room.secure, name: roomName }, settingsLoaded, remoteSnapshot, {
+  const remote = useRemote(prefs.remote, roomName, settingsLoaded, remoteSnapshot, {
     toggle: () => uiRef.current.toggle(),
     next: () => uiRef.current.next(),
     prev: () => uiRef.current.prev(),
@@ -1452,18 +1453,17 @@ export default function App() {
             <button
               className={`icon-button${prefs.remote.enabled ? ' active' : ''}`}
               onClick={() => setRemoteOpen(true)}
-              title="Fernbedienung übers Handy"
+              title="Fernsteuern lassen: Handys, andere Radios und Home Assistant"
             >
               <PhoneIcon size={20} />
               {remote.clients.some((c) => c.online) && <span className="badge-dot" />}
             </button>
             <button
-              className={`icon-button${prefs.room.open ? ' active' : ''}`}
+              className={`icon-button${prefs.room.join ? ' active' : ''}`}
               onClick={() => setRoomOpen(true)}
-              title="Room: mit anderen Radios zusammenschließen"
+              title="Room: ein anderes Radio fernsteuern oder mithören"
             >
               <RoomIcon size={20} />
-              {remote.clients.some((c) => c.online && c.kind === 'radio') && <span className="badge-dot" />}
             </button>
             <button className="icon-button" onClick={() => setSettingsOpen(true)} title="Einstellungen (,)">
               <SettingsIcon size={20} />
@@ -1652,6 +1652,9 @@ export default function App() {
           prefs={prefs.remote}
           info={remote.info}
           clients={remote.clients}
+          name={prefs.room.name}
+          defaultName={`Radio ${hostname}`}
+          onName={(name) => setRoom({ name })}
           onChange={(remotePrefs) => setPrefs((p) => ({ ...p, remote: remotePrefs }))}
           onClose={() => setRemoteOpen(false)}
         />
@@ -1678,8 +1681,6 @@ export default function App() {
         <RoomDialog
           prefs={prefs.room}
           defaultName={`Radio ${hostname}`}
-          info={remote.info}
-          clients={remote.clients}
           onChange={setRoom}
           onClose={() => setRoomOpen(false)}
         />
