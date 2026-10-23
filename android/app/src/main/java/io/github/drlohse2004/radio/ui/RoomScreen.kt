@@ -28,6 +28,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import io.github.drlohse2004.radio.Access
+import io.github.drlohse2004.radio.HostPrefs
+import io.github.drlohse2004.radio.localAddresses
+import io.github.drlohse2004.radio.randomKey
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,9 +58,68 @@ import io.github.drlohse2004.radio.RadioCore
 import io.github.drlohse2004.radio.RoomInfo
 import org.json.JSONObject
 
+/** Rooms wie unter Windows: oben fernsteuern lassen (Host), darunter ein anderes Radio fernsteuern */
 @Composable
 fun RoomScreen(core: RadioCore) {
-    if (core.room.active) RoomConnection(core) else RoomFinder(core)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+        Text("Rooms", color = C.text, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
+        HostSection(core)
+        HorizontalDivider(Modifier.padding(vertical = 18.dp), color = C.surface3)
+        if (core.room.active) RoomConnection(core) else RoomFinder(core)
+        Gap(32.dp)
+    }
+}
+
+/** Eingeklappter Bereich „Weitere Optionen“ */
+@Composable
+private fun More(content: @Composable () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    TextButton({ open = !open }) { Text(if (open) "▾ Weitere Optionen" else "▸ Weitere Optionen", color = C.muted) }
+    if (open) Column(Modifier.padding(start = 8.dp)) { content() }
+}
+
+@Composable
+private fun HostSection(core: RadioCore) {
+    val h = core.settings.host
+    fun set(change: (HostPrefs) -> HostPrefs) = core.update { it.copy(host = change(it.host)) }
+    val server = core.host
+
+    Text("Dieses Handy fernsteuern lassen", color = C.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
+    Note("Andere Radios, Handys und Home Assistant – ein Zugang, dieselben Regeln für alle.")
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        Access.entries.forEachIndexed { i, a ->
+            SegmentedButton(h.access == a, { set { it.copy(access = a) } }, SegmentedButtonDefaults.itemShape(i, Access.entries.size)) { Text(a.label) }
+        }
+    }
+    Note(
+        when (h.access) {
+            Access.OFF -> "Niemand kann sich verbinden."
+            Access.PUBLIC -> "Jedes Gerät im Netzwerk darf sich verbinden."
+            Access.SECURE -> "Beim Verbinden erscheint hier groß ein Einmalcode – oder man nimmt die Zugangs-PIN."
+        },
+    )
+    if (server.running) {
+        Note("Erreichbar unter " + localAddresses().joinToString(", ") { "${it.first}:${server.port}" }, C.live)
+        Note(if (server.clients.isEmpty()) "Gerade ist niemand verbunden." else "Verbunden: ${server.clients.joinToString(", ")}")
+    }
+    server.error?.let { Note(it, C.warn) }
+    if (h.access != Access.OFF) {
+        More {
+            OutlinedTextField(h.name, { v -> set { it.copy(name = v) } }, label = { Text("Name im Netzwerk") }, placeholder = { Text("Radio ${android.os.Build.MODEL}") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            if (h.access == Access.SECURE) {
+                OutlinedTextField(h.joinPin, { v -> set { it.copy(joinPin = v.filter(Char::isDigit).take(8)) } }, label = { Text("Zugangs-PIN (statt Code, optional)") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth())
+            }
+            OutlinedTextField(h.adminPin, { v -> set { it.copy(adminPin = v.filter(Char::isDigit).take(8)) } }, label = { Text("Admin-PIN (optional, für alle Rechte)") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth())
+            SectionTitle("Was dürfen alle?")
+            Toggle("Lautstärke ändern", h.guestVolume) { v -> set { it.copy(guestVolume = v) } }
+            Toggle("Pause, Weiter und Zurück", h.guestSkip) { v -> set { it.copy(guestSkip = v) } }
+            Toggle("Sender wechseln", h.guestStations) { v -> set { it.copy(guestStations = v) } }
+            OutlinedButton({ set { it.copy(key = randomKey()) } }) { Text("Neuen Schlüssel erzeugen") }
+            Note("Sperrt alle bisher verbundenen Geräte aus. Home Assistant: Integration „Radio“ mit der Adresse oben. Solange das Handy Host ist, sollte die App offen sein oder spielen.")
+        }
+    }
 }
 
 @Composable
@@ -63,44 +129,37 @@ private fun RoomFinder(core: RadioCore) {
     var joining by remember { mutableStateOf<RoomInfo?>(null) }
     LaunchedEffect(Unit) { if (room.found.isEmpty()) room.search() }
 
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        item {
-            Text("Rooms", color = C.text, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
-            Note("Andere Radios im Netzwerk fernsteuern oder mithören – Windows-Radios und Handys.")
-            room.error?.let { Note(it, C.warn) }
-            core.settings.room?.let { last ->
-                OutlinedButton({ room.connect(last) }, Modifier.fillMaxWidth()) { Text("Wieder verbinden mit „${last.name}“") }
+    Text("Ein anderes Radio fernsteuern", color = C.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+    Note("Radio antippen – danach im Reiter „Radio“ oben zwischen Mithören und Fernsteuern wählen.")
+    room.error?.let { Note(it, C.warn) }
+    core.settings.room?.let { last ->
+        OutlinedButton({ room.connect(last) }, Modifier.fillMaxWidth()) { Text("Wieder verbinden mit „${last.name}“") }
+    }
+    if (room.searching) Note("Suche Radios im Netz …")
+    else if (room.found.isEmpty()) Note("Kein Radio gefunden.")
+    for (r in room.found) {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(enabled = r.open) {
+                if (r.secure) joining = r else room.join(r) { err -> err?.let { core.message = it } }
+            }.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Artwork(null, r.name, 40.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(r.name, color = if (r.open) C.text else C.faint, fontWeight = FontWeight.SemiBold)
+                Text(r.address + if (!r.open) " · geschlossen" else if (r.secure) " · gesichert" else "", color = C.faint, fontSize = 12.sp)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionTitle("Gefunden", Modifier.weight(1f))
-                TextButton({ room.search(manual) }, enabled = !room.searching) { Text(if (room.searching) "Sucht …" else "Neu suchen") }
-            }
-            if (!room.searching && room.found.isEmpty()) Note("Kein Radio gefunden. Beim Host den Room öffnen oder die Adresse unten eintragen.")
+            if (r.secure) Icon(Icons.Filled.Lock, "gesichert", tint = C.muted)
         }
-        items(room.found, key = { it.address }) { r ->
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(enabled = r.open) {
-                    if (r.secure) joining = r else room.join(r) { err -> err?.let { core.message = it } }
-                }.padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Artwork(null, r.name, 40.dp)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(r.name, color = C.text, fontWeight = FontWeight.SemiBold)
-                    Text(if (!r.open) "geschlossen" else "${r.address} · ${r.version}", color = C.faint, fontSize = 12.sp)
-                }
-                if (r.secure) Icon(Icons.Filled.Lock, "gesichert", tint = C.muted)
-            }
+    }
+    OutlinedButton({ room.search(manual) }, enabled = !room.searching) { Text(if (room.searching) "Sucht …" else "Erneut suchen") }
+    More {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(manual, { manual = it }, label = { Text("Adresse, z. B. 192.168.1.20:8080") }, singleLine = true, modifier = Modifier.weight(1f))
+            IconButton({ room.search(manual) }) { Icon(Icons.Filled.Search, "Suchen") }
         }
-        item {
-            SectionTitle("Adresse eintragen")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(manual, { manual = it }, label = { Text("z. B. 192.168.1.20 oder 192.168.1.20:8080") }, singleLine = true, modifier = Modifier.weight(1f))
-                IconButton({ room.search(manual) }) { Icon(Icons.Filled.Search, "Suchen") }
-            }
-            Gap(24.dp)
-        }
+        Note("Findet die Suche ein Radio nicht (anderes Netz), hier seine Adresse eintragen.")
     }
     joining?.let { r -> JoinDialog(core, r) { joining = null } }
 }
@@ -143,8 +202,8 @@ private fun RoomConnection(core: RadioCore) {
     val rules = s.optJSONObject("rules")
     val receivers = s.optJSONObject("receivers")
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Text("Room", color = C.text, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
+    Column(Modifier.fillMaxWidth()) {
+        Text("Verbunden", color = C.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Artwork(null, room.name, 44.dp)
             Spacer(Modifier.width(12.dp))

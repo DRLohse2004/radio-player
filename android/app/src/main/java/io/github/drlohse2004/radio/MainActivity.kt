@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private val TABS = listOf("Radio" to Icons.Filled.Radio, "Room" to Icons.Filled.Groups, "Verlauf" to Icons.Filled.History, "Einstellungen" to Icons.Filled.Settings)
+private val TABS = listOf("Radio" to Icons.Filled.Radio, "Rooms" to Icons.Filled.Groups, "Verlauf" to Icons.Filled.History, "Einstellungen" to Icons.Filled.Settings)
 
 @Composable
 private fun RadioUi(core: RadioCore) {

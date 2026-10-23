@@ -34,6 +34,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -204,3 +205,12 @@ fun accentButton() = ButtonDefaults.buttonColors(containerColor = C.accent, cont
 
 @Composable
 fun Gap(h: Dp = 12.dp) = Spacer(Modifier.height(h))
+
+/** Schalter mit Beschriftung */
+@Composable
+fun Toggle(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = C.text, modifier = Modifier.weight(1f))
+        Switch(value, onChange)
+    }
+}

@@ -36,45 +36,8 @@ import io.github.drlohse2004.radio.randomKey
 
 @Composable
 fun SettingsScreen(core: RadioCore) {
-    val h = core.settings.host
-    fun set(change: (HostPrefs) -> HostPrefs) = core.update { it.copy(host = change(it.host)) }
-    val server = core.host
-
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Text("Einstellungen", color = C.text, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
-
-        SectionTitle("Als Host")
-        Note("Andere Radios (Rooms) und Home Assistant können dieses Handy steuern und mithören.")
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            Access.entries.forEachIndexed { i, a ->
-                SegmentedButton(h.access == a, { set { it.copy(access = a) } }, SegmentedButtonDefaults.itemShape(i, Access.entries.size)) { Text(a.label) }
-            }
-        }
-        Note(
-            when (h.access) {
-                Access.OFF -> "Niemand kann sich verbinden."
-                Access.PUBLIC -> "Jedes Gerät im Netzwerk darf beitreten."
-                Access.SECURE -> "Beitreten nur mit Zugangs-PIN oder einem Einmalcode, der dann groß hier erscheint."
-            },
-        )
-        if (server.running) {
-            val addresses = localAddresses().joinToString(", ") { "${it.first}:${server.port}" }
-            Note("Erreichbar unter $addresses", C.live)
-            if (server.clients.isNotEmpty()) Note("Verbunden: ${server.clients.joinToString(", ")}")
-        }
-        server.error?.let { Note(it, C.warn) }
-        OutlinedTextField(h.name, { v -> set { it.copy(name = v) } }, label = { Text("Name im Netzwerk") }, placeholder = { Text("Radio ${android.os.Build.MODEL}") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        if (h.access == Access.SECURE) {
-            OutlinedTextField(h.joinPin, { v -> set { it.copy(joinPin = v.filter(Char::isDigit).take(8)) } }, label = { Text("Zugangs-PIN (optional)") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth())
-        }
-        OutlinedTextField(h.adminPin, { v -> set { it.copy(adminPin = v.filter(Char::isDigit).take(8)) } }, label = { Text("Admin-PIN (optional, für alle Rechte)") }, singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth())
-        Toggle("Gäste dürfen die Lautstärke ändern", h.guestVolume) { v -> set { it.copy(guestVolume = v) } }
-        Toggle("Gäste dürfen Pause und Weiter", h.guestSkip) { v -> set { it.copy(guestSkip = v) } }
-        Toggle("Gäste dürfen den Sender wechseln", h.guestStations) { v -> set { it.copy(guestStations = v) } }
-        OutlinedButton({ set { it.copy(key = randomKey()) } }) { Text("Neuen Schlüssel erzeugen (sperrt alle Geräte aus)") }
-        Note("Home Assistant: Integration „Radio“ hinzufügen und die Adresse oben eintragen. Solange das Handy Host ist, sollte die App offen sein oder spielen – sonst kann Android sie beenden.")
 
         SectionTitle("Updates")
         Note("Version ${BuildConfig.VERSION_NAME}")
@@ -91,10 +54,3 @@ fun SettingsScreen(core: RadioCore) {
     }
 }
 
-@Composable
-private fun Toggle(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = C.text, modifier = Modifier.weight(1f))
-        Switch(value, onChange)
-    }
-}
