@@ -56,7 +56,7 @@ async function probe(address, port, timeout = 1500) {
   };
 }
 
-/** Adresse von Hand: „10.0.0.5“, „10.0.0.5:8080“ oder eine URL */
+/** Adresse von Hand: „192.168.1.5“, „192.168.1.5:8080“ oder eine URL */
 async function probeAddress(input) {
   const text = String(input || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   const match = /^([\w.-]+)(?::(\d{1,5}))?$/.exec(text);
@@ -72,7 +72,7 @@ async function probeAddress(input) {
 /**
  * Radios suchen: das eigene /24-Netz jeder Netzwerkkarte Adresse für Adresse, dazu eine UDP-Frage an
  * die Broadcast-Adressen der eigenen Netze. `networks` sind zusätzlich eingetragene Netze oder Rechner
- * (z. B. „10.0.11.255, 10.0.255.255“), siehe discovery.parseNetworks.
+ * (z. B. „192.168.20.255, 192.168.255.255“), siehe discovery.parseNetworks.
  */
 async function scan(networks = '') {
   const own = pickInterfaces().map((i) => i.address);

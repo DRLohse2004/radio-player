@@ -59,7 +59,7 @@ export interface RoomPrefs {
   volume: number;
   /** Kennung dieses Radios beim Host (für eigene Wünsche) */
   clientId: string;
-  /** weitere Netze für die Suche, z. B. „10.0.11.255, 10.0.255.255“ */
+  /** weitere Netze für die Suche, z. B. „192.168.20.255, 192.168.255.255“ */
   networks: string;
 }
 

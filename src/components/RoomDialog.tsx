@@ -223,13 +223,13 @@ export function RoomDialog({ prefs, defaultName, info, clients, onChange, onClos
                     <span>Auch in diesen Netzen suchen</span>
                     <input
                       value={networks}
-                      placeholder="z. B. 10.0.11.255, 10.0.255.255"
+                      placeholder="z. B. 192.168.20.255, 192.168.255.255"
                       onChange={(e) => setNetworks(e.target.value)}
                       onBlur={saveNetworks}
                       onKeyDown={(e) => e.key === 'Enter' && !scanning && scan(saveNetworks())}
                     />
                     <small className="muted">
-                      Broadcast-Adressen (10.0.11.255), Netze (10.0.11.0/24) oder einzelne Rechner, mit Komma getrennt. Ein /24-Netz
+                      Broadcast-Adressen (192.168.20.255), Netze (192.168.20.0/24) oder einzelne Rechner, mit Komma getrennt. Ein /24-Netz
                       wird zusätzlich Adresse für Adresse abgefragt – das klappt auch, wenn der Router Broadcasts nicht weiterleitet.
                     </small>
                   </label>
