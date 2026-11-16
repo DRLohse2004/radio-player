@@ -1,0 +1,120 @@
+# Baut die portable Radio.exe unter Windows und legt einen Release-Entwurf an.
+# Läuft, sobald auf main eine Versionsnummer in package.json steht, für die es noch kein Release gibt.
+# Veröffentlicht wird von Hand (Entwurf → „Publish release“): Erst dann laden die Radios das Update,
+# denn der Updater (electron/updater.cjs) zieht immer das neueste veröffentlichte Release.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  # Probelauf: Änderungen am Build selbst werden im PR gebaut, aber nicht veröffentlicht
+  pull_request:
+    paths: [.github/workflows/release.yml, scripts/build-portable.cjs, native/launcher/**]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            echo "Probelauf im Pull Request – es wird gebaut, aber kein Release angelegt."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Release (auch ein Entwurf) oder Tag vorhanden? Dann nichts tun.
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+             || git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1; then
+            echo "Release v$version gibt es schon – kein Build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - run: npm ci
+      - name: Typprüfung und Tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Neuestes yt-dlp holen
+        shell: pwsh
+        run: |
+          $base = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download'
+          Invoke-WebRequest "$base/yt-dlp.exe" -OutFile vendor/yt-dlp/yt-dlp.exe
+          Invoke-WebRequest "$base/SHA2-256SUMS" -OutFile "$env:RUNNER_TEMP/SHA2-256SUMS"
+          $expected = (Select-String -Path "$env:RUNNER_TEMP/SHA2-256SUMS" -Pattern '\syt-dlp\.exe$').Line.Split(' ')[0]
+          $actual = (Get-FileHash vendor/yt-dlp/yt-dlp.exe -Algorithm SHA256).Hash
+          if ($actual -ne $expected) { throw "yt-dlp.exe: Prüfsumme stimmt nicht ($actual statt $expected)" }
+          & vendor/yt-dlp/yt-dlp.exe --version | Tee-Object -Variable ytdlp
+          "YTDLP_VERSION=$ytdlp" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Portable .exe bauen
+        run: npm run dist
+
+      - name: Probelauf – .exe als Artefakt ablegen
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Radio-portable-probelauf
+          path: release/Radio-${{ env.VERSION }}-portable.exe
+          retention-days: 3
+
+      - name: Release-Entwurf anlegen
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Copy-Item "release/Radio-$env:VERSION-portable.exe" "$env:RUNNER_TEMP/Radio-portable.exe"
+          $notes = @"
+          ## Neu
+
+          _(Hier die Änderungen beschreiben. Darunter stehen die automatisch gesammelten Commits.)_
+
+          ## Download
+
+          ``Radio-portable.exe`` herunterladen und starten, keine Installation nötig. Radios ab 1.4.0 aktualisieren sich von selbst.
+
+          <sub>Gebaut von GitHub Actions, mitgeliefertes yt-dlp: $env:YTDLP_VERSION</sub>
+          "@
+          gh release create "v$env:VERSION" "$env:RUNNER_TEMP/Radio-portable.exe" `
+            --repo $env:GITHUB_REPOSITORY `
+            --draft `
+            --target $env:GITHUB_SHA `
+            --title "Radio $env:VERSION" `
+            --notes $notes `
+            --generate-notes
