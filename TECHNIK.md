@@ -33,13 +33,23 @@ npm install
 | `npm start` | Oberfläche bauen und als Desktop-App starten |
 | `npm run dist` | Portable `.exe` nach `release/` bauen (braucht zusätzlich das .NET SDK für den Starter) |
 | `npm run build:ico` | `build/icon.ico` (für den Starter) aus `build/icon.png` erzeugen |
-| `npm test` | Unit-Tests (Vitest) für Titel-Erkennung, Sender-Store und ICY-Parser |
+| `npm test` | Alle Tests (Vitest): Logik in `src/*.test.ts` und `test/`, Oberfläche in `src/test/` (jsdom) |
+| `npm run lint` | ESLint für `src/` und `test/` (keine Warnungen erlaubt) |
 | `npm run typecheck` | TypeScript prüfen |
 | `npm run dev` | Nur die Oberfläche im Browser (ohne Titel, Cover, Spotify; Sender im localStorage) |
 | `npm run build:bt` | Bluetooth-Hilfsprogramm neu bauen (braucht .NET 9 SDK) |
 | `npx electron scripts/make-icon.cjs` | `build/icon.png` neu aus `public/icon.svg` erzeugen |
 
-Bei jedem Push und Pull Request laufen Typprüfung, Tests und Build automatisch auf GitHub Actions (`.github/workflows/ci.yml`, Ubuntu – die Windows-Teile werden dort nicht getestet).
+Bei jedem Push und Pull Request laufen Typprüfung, Lint, Tests und Build automatisch auf GitHub Actions (`.github/workflows/ci.yml`, Ubuntu – die Windows-Teile werden dort nicht getestet).
+
+**Oberflächen-Tests** (`src/test/App.test.tsx`) rendern die ganze App mit der Browser-Variante der API
+(`browserApi` in `src/api.ts`, Einstellungen im localStorage) und prüfen Sender wählen, Tastenkürzel,
+Sender hinzufügen/löschen, Einstellungen, Reiter und das Laden gespeicherter Sender. Was jsdom fehlt
+(Audio, Web Audio, Canvas, Netz), ersetzt `src/test/setup-dom.ts`. Neue Oberflächen-Tests gehören nach `src/test/`.
+
+Für Tests ohne Electron sind reine Funktionen ausgelagert bzw. exportiert: `electron/version.cjs` (Updater),
+`require('./electron/youtube.cjs').parse` (yt-dlp-Antworten), `writeConfig` in `electron/spotify.cjs`,
+`src/schedule.ts` (Zeitplan).
 
 ## Aufbau
 

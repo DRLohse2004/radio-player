@@ -153,4 +153,6 @@ module.exports = {
     onChange = listener;
   },
   killSync: () => child?.kill(),
+  // für Tests
+  writeConfig,
 };

@@ -1,4 +1,4 @@
-# Prüft jeden Push und Pull Request: Typen, Unit-Tests und Build.
+# Prüft jeden Push und Pull Request: Typen, Lint, Tests (Logik und Oberfläche) und Build.
 # Windows-Teile (Bluetooth, WASAPI, portable exe) laufen hier nicht.
 name: CI
 
@@ -22,6 +22,8 @@ jobs:
       - run: npm ci
       - name: Typprüfung
         run: npm run typecheck
+      - name: Lint
+        run: npm run lint
       - name: Tests
         run: npm test
       - name: Build
