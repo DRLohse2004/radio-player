@@ -309,6 +309,22 @@ bereitzustellen:
 
 ## Release veröffentlichen
 
+**Automatisch über GitHub Actions** (`.github/workflows/release.yml`):
+
+1. Version in `package.json` erhöhen und auf `main` bringen.
+2. Die Aktion „Release“ merkt, dass es für diese Version noch kein Release gibt, und baut unter Windows
+   die portable .exe – mit dem **neuesten yt-dlp** (Prüfsumme gegen `SHA2-256SUMS` geprüft);
+   go-librespot und bt-receiver kommen unverändert aus `vendor/`. Dauer etwa 10–15 Minuten.
+3. Ergebnis ist ein **Release-Entwurf** `vX.Y.Z` mit `Radio-portable.exe` und automatisch gesammelten Commits.
+   Text unter „Neu“ ergänzen, die .exe kurz testen, dann **„Publish release“**. Erst jetzt entsteht der Tag
+   und erst jetzt laden die Radios das Update.
+
+Läuft die Aktion nicht an (z. B. Version im selben Push schon vorhanden), lässt sie sich unter
+Actions → Release → „Run workflow“ von Hand starten. Gibt es zur Version schon ein Release oder einen Entwurf,
+baut sie nichts.
+
+**Von Hand** (falls GitHub nicht geht):
+
 1. Version in `package.json` erhöhen.
 2. `npm run dist` – erzeugt `release/Radio-<version>-portable.exe` (Starter + App).
 3. Für einen festen Download-Link die Datei als `Radio-portable.exe` an ein GitHub-Release hängen, z. B.:
