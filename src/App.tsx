@@ -30,6 +30,7 @@ import { StationList } from './components/StationList';
 import { StationStore } from './components/StationStore';
 import { deckStations, FlapTrack, Spectrum, StationDeck, TuningScale, VuMeter } from './components/ThemeDeck';
 import { findStationLogo } from './logo';
+import { scheduleAction, withinSchedule } from './schedule';
 import { parseStreamTitle } from './metadata';
 import { isSpotifyPlaying, useSpotify } from './spotify';
 import type { HostListen, NowPlaying, PlayerStatus, Preferences, RoomPrefs, SourceTab, Station, StoreStation, Track, YouTubeItem } from './types';
@@ -87,16 +88,6 @@ const TABS: { id: Tab; label: string }[] = [
 const YOUTUBE_URL = /^https?:\/\/((www|m|music)\.)?(youtube\.com|youtu\.be)\//i;
 const SPOTIFY_STATION: Station = { id: 'spotify', name: 'Spotify Connect', url: '' };
 
-function hhmm(date: Date) {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
-/** Liegt der Zeitpunkt an einem aktiven Tag zwischen Ein- und Ausschaltzeit? */
-function withinSchedule(schedule: Preferences['schedule'], date: Date) {
-  if (!schedule.enabled || !schedule.days.includes(date.getDay())) return false;
-  const time = hhmm(date);
-  return time >= schedule.start && time < schedule.stop;
-}
 
 function sameTrack(a: Pick<Track, 'artist' | 'title'>, b: Pick<Track, 'artist' | 'title'>) {
   return normalizeName(a.artist) === normalizeName(b.artist) && normalizeName(a.title) === normalizeName(b.title);
@@ -211,19 +202,14 @@ export default function App() {
   useEffect(() => {
     if (!prefs.schedule.enabled) return;
     const check = () => {
-      const now = new Date();
-      const { schedule } = prefs;
-      if (!schedule.days.includes(now.getDay())) return;
-      const time = hhmm(now);
-      const key = `${now.toDateString()} ${time}`;
-      if (lastScheduleRef.current === key) return;
-      if (time === schedule.start) {
-        lastScheduleRef.current = key;
+      const due = scheduleAction(prefs.schedule, new Date());
+      if (!due || lastScheduleRef.current === due.key) return;
+      lastScheduleRef.current = due.key;
+      if (due.action === 'start') {
         retriesRef.current = 0;
         setWantPlay(true);
         if (prefs.startFullscreen) setFullscreen(true);
-      } else if (time === schedule.stop) {
-        lastScheduleRef.current = key;
+      } else {
         setWantPlay(false);
         setFullscreen(false);
       }

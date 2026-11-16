@@ -9,6 +9,7 @@ const { app, net } = require('electron');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { newer } = require('./version.cjs');
 
 const FEED = process.env.RADIO_UPDATE_FEED || 'https://api.github.com/repos/DRLohse2004/radio-player/releases/latest';
 const ASSET = 'Radio-portable.exe';
@@ -24,16 +25,6 @@ const exePath = () => process.env.PORTABLE_EXECUTABLE_FILE || null;
 function publish(patch) {
   state = { ...state, ...patch };
   send('update:state', state);
-}
-
-/** "1.10.2" > "1.9.0" */
-function newer(a, b) {
-  const pa = String(a).replace(/^v/, '').split('.').map(Number);
-  const pb = String(b).replace(/^v/, '').split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
-  }
-  return false;
 }
 
 async function check() {

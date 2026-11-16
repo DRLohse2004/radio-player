@@ -46,6 +46,8 @@ export function useRoom(prefs: RoomPrefs, ready: boolean, myName: string) {
     return () => {
       api.roomDisconnect();
     };
+    // Bewusst nur url/key: ein neues join-Objekt mit gleichen Daten soll nicht neu verbinden
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, join?.url, join?.key, prefs.clientId, myName]);
 
   const adminRef = useRef(admin);
@@ -74,7 +76,7 @@ export function useRoom(prefs: RoomPrefs, ready: boolean, myName: string) {
   const login = useCallback(
     async (pin: string) => {
       const body = await call('/api/admin', { pin });
-      setAdmin(body.token);
+      setAdmin(body.token ?? null);
     },
     [call],
   );

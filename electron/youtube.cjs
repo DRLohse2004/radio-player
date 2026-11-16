@@ -90,7 +90,11 @@ function videoThumbnail(id) {
 /** Infos zu einem Link: Video, Livestream oder Playlist (mit Titelliste) */
 async function info(url) {
   const raw = await run(await binary(), [...baseArgs(), '--flat-playlist', '-J', url]);
-  const j = JSON.parse(raw);
+  return parseInfo(JSON.parse(raw), url);
+}
+
+/** yt-dlp-JSON (--flat-playlist) → Video, Livestream oder Playlist */
+function parseInfo(j, url) {
   if (j._type === 'playlist') {
     const entries = (j.entries ?? [])
       .filter((e) => e && e.id && e.title !== '[Private video]' && e.title !== '[Deleted video]')
@@ -122,7 +126,11 @@ async function info(url) {
 /** Abspielbare Audio-Adresse (direkte Datei oder HLS bei Livestreams) */
 async function resolve(url) {
   const raw = await run(await binary(), [...baseArgs(), '--no-playlist', '-f', 'bestaudio/best', '-J', url]);
-  const j = JSON.parse(raw);
+  return parseResolve(JSON.parse(raw), url);
+}
+
+/** yt-dlp-JSON (-f bestaudio) → Audio-Adresse und Anzeige-Daten */
+function parseResolve(j, url) {
   const format = j.requested_formats?.[0] ?? j;
   return {
     url: format.url ?? j.url,
@@ -157,7 +165,12 @@ async function searchPlaylists(q) {
   // sp=EgIQAw== ist YouTubes Filter „nur Playlists“
   const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=EgIQAw%3D%3D`;
   const raw = await run(await binary(), [...baseArgs(), '--flat-playlist', '-I', '1:4', '-J', url]);
-  return (JSON.parse(raw).entries ?? [])
+  return parsePlaylists(JSON.parse(raw));
+}
+
+/** Suchergebnis „nur Playlists“ → Playlist-Treffer */
+function parsePlaylists(j) {
+  return (j.entries ?? [])
     .filter((e) => e && PLAYLIST_ID.test(e.id ?? ''))
     .map((e) => ({
       id: e.id,
@@ -171,7 +184,11 @@ async function searchPlaylists(q) {
 
 async function searchVideos(target) {
   const raw = await run(await binary(), [...baseArgs(), '--flat-playlist', '--no-playlist', '-J', target]);
-  const j = JSON.parse(raw);
+  return parseVideos(JSON.parse(raw));
+}
+
+/** Suchergebnis oder einzelnes Video → abspielbare Videos (ohne Livestreams) */
+function parseVideos(j) {
   const list = j._type === 'playlist' ? j.entries ?? [] : [j];
   return list
     .filter((e) => e && e.id && /^[\w-]{11}$/.test(e.id) && !e.is_live && e.live_status !== 'is_live')
@@ -222,4 +239,4 @@ async function getVersion() {
   return version(await binary());
 }
 
-module.exports = { setup, info, resolve, search, playlist, video, update, getVersion };
+module.exports = { setup, info, resolve, search, playlist, video, update, getVersion, parse: { parseInfo, parseResolve, parsePlaylists, parseVideos } };

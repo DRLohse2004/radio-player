@@ -1,3 +1,17 @@
+/** Antwort des Room-Hosts (electron/room.cjs). Welche Felder gesetzt sind, hängt vom Endpunkt ab. */
+export interface RoomResponseBody {
+  error?: string;
+  /** /api/join: Schlüssel für die Verbindung */
+  key?: string;
+  /** /api/admin: Admin-Token */
+  token?: string;
+  /** /api/search */
+  results?: YouTubeResult[];
+  /** /api/playlist */
+  entries?: YouTubeResult[];
+  [field: string]: unknown;
+}
+
 export interface Station {
   id: string;
   name: string;
@@ -469,8 +483,8 @@ export interface RadioApi {
   roomProbe(address: string): Promise<RoomHost | null>;
   roomConnect(options: { url: string; key: string; clientId: string; name: string }): Promise<void>;
   roomDisconnect(): Promise<void>;
-  roomRequest(options: { method?: 'GET' | 'POST'; path: string; body?: unknown; admin?: string }): Promise<{ status: number; body: any }>;
-  roomJoin(options: { url: string; clientId: string; name: string; pin?: string; code?: string; request?: boolean }): Promise<{ status: number; body: any }>;
+  roomRequest(options: { method?: 'GET' | 'POST'; path: string; body?: unknown; admin?: string }): Promise<{ status: number; body: RoomResponseBody }>;
+  roomJoin(options: { url: string; clientId: string; name: string; pin?: string; code?: string; request?: boolean }): Promise<{ status: number; body: RoomResponseBody }>;
   onRoomEvent(callback: (event: RoomEvent) => void): () => void;
   youtubeInfo(url: string): Promise<YouTubeInfo>;
   /** Suche wie bei den Wünschen: Videos und Playlists (bzw. ein eingefügter Link) */
