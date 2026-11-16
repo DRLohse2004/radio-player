@@ -70,7 +70,14 @@ electron/cast.cjs      Chromecast: Geräte suchen (mDNS), Default Media Receiver
                        verteilt an dlna.cjs, cast-media.cjs (Adresse/Format für den Lautsprecher)
 electron/dlna.cjs      DLNA/UPnP-Lautsprecher: SSDP-Suche, Gerätebeschreibung, AVTransport/RenderingControl
 electron/preload.cjs   Schnittstelle window.radioApi für die Oberfläche
-src/App.tsx            Wiedergabe-Logik, Reiter, welche Quelle in der Mitte steht, Layout
+src/App.tsx            Zusammenspiel der Quellen (wer pausiert wen), Reiter, welche Quelle in der Mitte steht, Layout
+src/hooks/             Teile von App.tsx als Hooks: useSettings (laden/speichern), useRadioStream (Stream,
+                       Neuversuche, Titel/Cover), useSchedule, useLogoSearch, useYouTubeQueue, useRecordTrack
+                       (Verlauf), useMediaSession, useFullscreen, useWindowKeys
+src/sourceViews.ts     Anzeige je Quelle (Song, Status-Text) für Spotify, Bluetooth, AirPlay, YouTube
+src/prefs.ts           Standard-Einstellungen, gespeicherte Einstellungen ergänzen (mergePrefs)
+src/tracks.ts          Songs vergleichen, Verlauf und Merkliste
+src/remoteEdit.ts      Sender/YouTube-Einträge über Room oder Fernbedienung bearbeiten (Eingaben prüfen)
 src/layout.css         Schwebende Seitenleiste, YouTube-Liste
 src/components/        Senderliste, Editor, Store, Player-Bausteine, Vollbild, Einstellungen; je Quelle eine
                        Seitenleiste (*Sidebar) und eine Ansicht für die Mitte (*Stage)

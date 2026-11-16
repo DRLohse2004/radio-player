@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { api, DEFAULT_STATIONS, isDesktop, newStationId } from './api';
-import { attachToGraph, connectAudio, type AudioGraph } from './audio';
+import { api, isDesktop, newStationId } from './api';
 import { FullscreenView } from './components/FullscreenView';
 import { ExpandIcon, HeartIcon, HistoryIcon, PhoneIcon, RoomIcon, SettingsIcon, SidebarIcon, VolumeIcon } from './components/Icons';
 import { LibraryPanel } from './components/LibraryPanel';
@@ -14,9 +13,8 @@ import { YouTubeStage } from './components/YouTubeStage';
 import { useYouTube } from './youtube';
 import { useCast } from './cast';
 import { CastButton } from './components/CastButton';
-import { isPlaylist, nextTrack, topTrack } from './queue';
 import { newRemoteKey, useRemote } from './remote';
-import { newClientId, useRoom } from './room';
+import { useRoom } from './room';
 import { RoomDialog } from './components/RoomDialog';
 import { RoomView } from './components/RoomView';
 import { RemoteDialog } from './components/RemoteDialog';
@@ -29,53 +27,31 @@ import { StationEditor } from './components/StationEditor';
 import { StationList } from './components/StationList';
 import { StationStore } from './components/StationStore';
 import { deckStations, FlapTrack, Spectrum, StationDeck, TuningScale, VuMeter } from './components/ThemeDeck';
-import { findStationLogo } from './logo';
-import { scheduleAction, withinSchedule } from './schedule';
-import { parseStreamTitle } from './metadata';
+import { withinSchedule } from './schedule';
+import { editFromRemote } from './remoteEdit';
+import { airplayView, bluetoothView, spotifyView, youtubeView } from './sourceViews';
+import { sameTrack, toggleInList } from './tracks';
+import { useFullscreen } from './hooks/useFullscreen';
+import { useLogoSearch } from './hooks/useLogoSearch';
+import { useMediaSession } from './hooks/useMediaSession';
+import { useRadioStream } from './hooks/useRadioStream';
+import { useRecordTrack } from './hooks/useRecordTrack';
+import { useSchedule } from './hooks/useSchedule';
+import { useSettings } from './hooks/useSettings';
+import { useWindowKeys } from './hooks/useWindowKeys';
+import { useYouTubeQueue } from './hooks/useYouTubeQueue';
 import { isSpotifyPlaying, useSpotify } from './spotify';
-import type { HostListen, NowPlaying, PlayerStatus, Preferences, RoomPrefs, SourceTab, Station, StoreStation, Track, YouTubeItem } from './types';
+import type { HostListen, PlayerStatus, RoomPrefs, SourceTab, Station, StoreStation, Track, YouTubeItem } from './types';
 import './App.css';
 import './features.css';
 import './store.css';
 import './spotify.css';
 import './layout.css';
-import { DECK_THEMES, THEMES, useTheme } from './themes';
+import { DECK_THEMES, useTheme } from './themes';
 import { VOLUME_STEP } from './shortcuts';
 import { moveTo } from './list';
 
-const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 3000;
-const MAX_HISTORY = 200;
 
-const DEFAULT_PREFS: Preferences = {
-  autoplay: false,
-  startFullscreen: false,
-  schedule: { enabled: false, start: '08:00', stop: '17:00', days: [1, 2, 3, 4, 5] },
-  weatherCity: '',
-  swapMinutes: 5,
-  visualizer: true,
-  spotify: { enabled: false, mode: 'network', deviceName: '' },
-  bluetooth: { enabled: false },
-  airplay: { enabled: false, name: '' },
-  sidebarOpen: true,
-  remote: {
-    enabled: false,
-    secure: false,
-    joinPin: '',
-    key: '',
-    pin: '',
-    guestVolume: true,
-    guestSkip: true,
-    guestStations: true,
-    maxWishes: 3,
-    maxMinutes: 15,
-    qrInFullscreen: false,
-  },
-  autoUpdate: true,
-  room: { open: false, secure: false, name: '', join: null, mode: 'listen', volume: 0.7, clientId: '', networks: '' },
-  tabs: { radio: true, youtube: true, spotify: true, airplay: true, bluetooth: true },
-  theme: 'standard',
-};
 
 type Tab = SourceTab;
 const TABS: { id: Tab; label: string }[] = [
@@ -86,35 +62,18 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'bluetooth', label: 'Bluetooth' },
 ];
 const YOUTUBE_URL = /^https?:\/\/((www|m|music)\.)?(youtube\.com|youtu\.be)\//i;
-const SPOTIFY_STATION: Station = { id: 'spotify', name: 'Spotify Connect', url: '' };
 
 
-function sameTrack(a: Pick<Track, 'artist' | 'title'>, b: Pick<Track, 'artist' | 'title'>) {
-  return normalizeName(a.artist) === normalizeName(b.artist) && normalizeName(a.title) === normalizeName(b.title);
-}
-
-function normalizeName(s: string | null | undefined) {
-  return (s ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
-}
 
 function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName);
 }
 
 export default function App() {
-  const [stations, setStations] = useState<Station[]>([]);
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  const [volume, setVolume] = useState(0.7);
   const [muted, setMuted] = useState(false);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-
   const [wantPlay, setWantPlay] = useState(false);
-  const [status, setStatus] = useState<PlayerStatus>('idle');
-  const [retryNonce, setRetryNonce] = useState(0);
-  const [nowPlaying, setNowPlaying] = useState<NowPlaying | null>(null);
-
   const [editing, setEditing] = useState<Station | 'new' | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreen, setFullscreen] = useFullscreen();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
@@ -124,254 +83,98 @@ export default function App() {
   const [joinCode, setJoinCode] = useState<{ code: string; name: string; kind: 'phone' | 'radio' } | null>(null);
   useEffect(() => api.onRemoteCode(setJoinCode), []);
 
-  const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
+  // --- Einstellungen laden/speichern ---------------------------------------
+  const {
+    loaded: settingsLoaded,
+    stations,
+    setStations,
+    currentId,
+    setCurrentId,
+    volume,
+    setVolume,
+    prefs,
+    setPrefs,
+    history,
+    setHistory,
+    favorites,
+    setFavorites,
+    youtubeItems,
+    setYoutubeItems,
+  } = useSettings((loadedPrefs) => {
+    // Autostart: sofort spielen, wenn gewünscht oder wir im Zeitplan-Fenster sind – im Room hört man mit
+    if (!loadedPrefs.room.join && (loadedPrefs.autoplay || withinSchedule(loadedPrefs.schedule, new Date()))) {
+      setWantPlay(true);
+      if (loadedPrefs.startFullscreen) setFullscreen(true);
+    }
+  });
   useTheme(prefs.theme);
-  const [history, setHistory] = useState<Track[]>([]);
-  const [favorites, setFavorites] = useState<Track[]>([]);
-  const [graph, setGraph] = useState<AudioGraph | null>(null);
   const [tab, setTab] = useState<Tab>('radio');
   /** Quelle, die zuletzt gestartet wurde – sie bleibt in der Mitte, egal welcher Reiter offen ist */
   const [source, setSource] = useState<Tab>('radio');
-  const [youtubeItems, setYoutubeItems] = useState<YouTubeItem[]>([]);
   /** dieses Radio ist einem Room beigetreten (hört mit oder steuert den Host) */
   const joined = !!prefs.room.join;
   const [hostname, setHostname] = useState('PC');
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ytAudioRef = useRef<HTMLAudioElement>(null);
-  const sessionRef = useRef(0);
-  const retriesRef = useRef(0);
-  const retryTimerRef = useRef<number>();
-  const stationNamesRef = useRef<string[]>([]);
 
   const current = stations.find((s) => s.id === currentId) ?? null;
-  const streamUrl = wantPlay ? current?.url ?? null : null;
-  stationNamesRef.current = [current?.name ?? ''];
-  const stationNameRef = useRef('');
-  stationNameRef.current = current?.name ?? '';
 
-  // --- Einstellungen laden/speichern ---------------------------------------
+  // --- Wiedergabe, Titel & Cover ----------------------------------------------
 
-  useEffect(() => {
-    api.loadSettings().then((settings) => {
-      const list = settings?.stations ?? DEFAULT_STATIONS;
-      setStations(list);
-      if (typeof settings?.volume === 'number') setVolume(settings.volume);
-      const last = settings?.lastStationId;
-      setCurrentId(last && list.some((s) => s.id === last) ? last : list[0]?.id ?? null);
-      const loadedPrefs: Preferences = {
-        ...DEFAULT_PREFS,
-        ...settings?.prefs,
-        schedule: { ...DEFAULT_PREFS.schedule, ...settings?.prefs?.schedule },
-        spotify: { ...DEFAULT_PREFS.spotify, ...settings?.prefs?.spotify },
-        bluetooth: { ...DEFAULT_PREFS.bluetooth, ...settings?.prefs?.bluetooth },
-        airplay: { ...DEFAULT_PREFS.airplay, ...settings?.prefs?.airplay },
-        remote: { ...DEFAULT_PREFS.remote, ...settings?.prefs?.remote },
-        room: { ...DEFAULT_PREFS.room, ...settings?.prefs?.room },
-        tabs: { ...DEFAULT_PREFS.tabs, ...settings?.prefs?.tabs },
-      };
-      if (!THEMES.some((t) => t.id === loadedPrefs.theme)) loadedPrefs.theme = 'standard';
-      if (!loadedPrefs.room.clientId) loadedPrefs.room.clientId = newClientId();
-      // Im Room hört man mit statt selbst zu starten
-      const inRoom = !!loadedPrefs.room.join;
-      setPrefs(loadedPrefs);
-      setHistory(settings?.history ?? []);
-      setFavorites(settings?.favorites ?? []);
-      setYoutubeItems(settings?.youtube ?? []);
-      // Autostart: sofort spielen, wenn gewünscht oder wir im Zeitplan-Fenster sind
-      if (!inRoom && (loadedPrefs.autoplay || withinSchedule(loadedPrefs.schedule, new Date()))) {
-        setWantPlay(true);
-        if (loadedPrefs.startFullscreen) setFullscreen(true);
-      }
-      setSettingsLoaded(true);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    const timer = window.setTimeout(
-      () => api.saveSettings({ stations, volume, lastStationId: currentId, prefs, history, favorites, youtube: youtubeItems }),
-      400,
-    );
-    return () => window.clearTimeout(timer);
-  }, [settingsLoaded, stations, volume, currentId, prefs, history, favorites, youtubeItems]);
+  const radio = useRadioStream({
+    audioRef,
+    ytAudioRef,
+    streamUrl: wantPlay ? current?.url ?? null : null,
+    wantPlay,
+    stationName: current?.name ?? '',
+    setHistory,
+  });
+  const { status, nowPlaying, graph, resetRetries } = radio;
 
   // --- Zeitplan ----------------------------------------------------------------
 
-  const lastScheduleRef = useRef('');
-  useEffect(() => {
-    if (!prefs.schedule.enabled) return;
-    const check = () => {
-      const due = scheduleAction(prefs.schedule, new Date());
-      if (!due || lastScheduleRef.current === due.key) return;
-      lastScheduleRef.current = due.key;
-      if (due.action === 'start') {
-        retriesRef.current = 0;
-        setWantPlay(true);
-        if (prefs.startFullscreen) setFullscreen(true);
-      } else {
-        setWantPlay(false);
-        setFullscreen(false);
-      }
-    };
-    check();
-    const timer = window.setInterval(check, 15_000);
-    return () => window.clearInterval(timer);
-  }, [prefs]);
+  useSchedule(prefs.schedule, {
+    onStart: () => {
+      resetRetries();
+      setWantPlay(true);
+      if (prefs.startFullscreen) setFullscreen(true);
+    },
+    onStop: () => {
+      setWantPlay(false);
+      setFullscreen(false);
+    },
+  });
 
-  // --- Automatische Logo-Suche (ein Sender nach dem anderen) ------------------
-
-  const logoPending = stations.find((s) => !s.logo && !s.logoChecked) ?? null;
-  const logoPendingKey = logoPending ? `${logoPending.id}|${logoPending.name}|${logoPending.url}` : null;
-  useEffect(() => {
-    if (!settingsLoaded || !logoPending) return;
-    const { id, name, url } = logoPending;
-    let cancelled = false;
-    findStationLogo(name, url).then((logo) => {
-      if (cancelled) return;
-      setStations((list) =>
-        list.map((s) => (s.id === id && !s.logo ? { ...s, logo: logo ?? undefined, logoChecked: true } : s)),
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-    // nur neu starten, wenn sich der zu prüfende Sender ändert
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsLoaded, logoPendingKey]);
-
-  // --- Wiedergabe ------------------------------------------------------------
-
-  // In der Desktop-App läuft der Ton über WebAudio (für den Visualizer). Die Streams kommen
-  // dann vom lokalen Proxy, der die nötige CORS-Freigabe mitschickt.
-  useEffect(() => {
-    if (isDesktop && audioRef.current) {
-      const g = connectAudio(audioRef.current);
-      if (g && ytAudioRef.current) attachToGraph(g, ytAudioRef.current);
-      setGraph(g);
-    }
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const session = ++sessionRef.current;
-    window.clearTimeout(retryTimerRef.current);
-    setNowPlaying(null);
-
-    if (!streamUrl) {
-      // Live-Stream komplett trennen, damit "Play" wieder live einsteigt statt alten Puffer zu spielen
-      audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
-      setStatus('idle');
-      return;
-    }
-
-    let cancelled = false;
-    setStatus('loading');
-    graph?.context.resume().catch(() => {});
-    api.getStreamUrl(streamUrl, session).then((src) => {
-      if (cancelled) return;
-      audio.src = src;
-      audio.play().catch((err: unknown) => {
-        // AbortError = durch Senderwechsel überholt, kein echter Fehler
-        if (!cancelled && !(err instanceof DOMException && err.name === 'AbortError')) {
-          audio.dispatchEvent(new Event('error'));
-        }
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [streamUrl, retryNonce]);
-
-  const handleStreamFailure = useCallback(() => {
-    if (!wantPlay) return;
-    setStatus('error');
-    window.clearTimeout(retryTimerRef.current);
-    if (retriesRef.current < MAX_RETRIES) {
-      retriesRef.current += 1;
-      retryTimerRef.current = window.setTimeout(() => setRetryNonce((n) => n + 1), RETRY_DELAY_MS);
-    }
-  }, [wantPlay]);
-
-  // --- Titel & Cover ---------------------------------------------------------
-
-  useEffect(
-    () =>
-      api.onTitle(({ session, title }) => {
-        if (session !== sessionRef.current) return;
-        setNowPlaying((prev) => (prev?.raw === title ? prev : parseStreamTitle(title, stationNamesRef.current)));
-      }),
-    [],
-  );
-
-  useEffect(
-    () =>
-      api.onStationInfo(({ session, name }) => {
-        if (session === sessionRef.current) stationNamesRef.current.push(name);
-      }),
-    [],
-  );
-
-  const trackKey = nowPlaying?.artist && nowPlaying.title ? nowPlaying.raw : null;
-  useEffect(() => {
-    if (!trackKey || !nowPlaying?.artist || !nowPlaying.title) return;
-    const { artist, title } = nowPlaying;
-    let cancelled = false;
-    api.lookupCover(artist, title).then((info) => {
-      if (cancelled) return;
-      // korrekte Schreibweise übernehmen, wenn es eindeutig derselbe Titel ist
-      const track: Track = {
-        id: `t-${Date.now().toString(36)}`,
-        artist: info?.artist && normalizeName(info.artist) === normalizeName(artist) ? info.artist : artist,
-        title: info?.title && normalizeName(info.title) === normalizeName(title) ? info.title : title,
-        album: info?.album ?? null,
-        cover: info?.cover ?? null,
-        station: stationNameRef.current,
-        time: new Date().toISOString(),
-      };
-      setHistory((list) => (list[0] && sameTrack(list[0], track) ? list : [track, ...list].slice(0, MAX_HISTORY)));
-      if (!info) return;
-      setNowPlaying((prev) =>
-        prev && prev.raw === trackKey
-          ? { ...prev, cover: track.cover, album: track.album, artist: track.artist, title: track.title }
-          : prev,
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-    // nur bei neuem Titel suchen, nicht nach der eigenen Aktualisierung
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackKey]);
+  useLogoSearch(stations, setStations, settingsLoaded);
 
   // --- Steuerung ---------------------------------------------------------------
 
   const togglePlay = useCallback(() => {
     if (!current) return;
-    retriesRef.current = 0;
+    resetRetries();
     setWantPlay((p) => !p);
-  }, [current]);
+  }, [current, resetRetries]);
 
-  const selectStation = useCallback((id: string) => {
-    retriesRef.current = 0;
-    setTab('radio');
-    setCurrentId(id);
-    setWantPlay(true);
-  }, []);
+  const selectStation = useCallback(
+    (id: string) => {
+      resetRetries();
+      setTab('radio');
+      setCurrentId(id);
+      setWantPlay(true);
+    },
+    [resetRetries, setCurrentId],
+  );
 
   const step = useCallback(
     (delta: number) => {
       if (stations.length === 0) return;
       const index = stations.findIndex((s) => s.id === currentId);
       const next = stations[(index + delta + stations.length) % stations.length];
-      retriesRef.current = 0;
+      resetRetries();
       setCurrentId(next.id);
     },
-    [stations, currentId],
+    [stations, currentId, resetRetries, setCurrentId],
   );
   const prevStation = useCallback(() => step(-1), [step]);
   const nextStation = useCallback(() => step(1), [step]);
@@ -437,10 +240,7 @@ export default function App() {
     (track: Pick<Track, 'artist' | 'title'>) => favorites.some((f) => sameTrack(f, track)),
     [favorites],
   );
-  const toggleFavorite = (track: Track) =>
-    setFavorites((list) =>
-      list.some((f) => sameTrack(f, track)) ? list.filter((f) => !sameTrack(f, track)) : [track, ...list],
-    );
+  const toggleFavorite = (track: Track) => setFavorites((list) => toggleInList(list, track));
   const currentTrack: Track | null =
     nowPlaying?.artist && nowPlaying.title
       ? history.find((t) => sameTrack(t, { artist: nowPlaying.artist!, title: nowPlaying.title! })) ?? {
@@ -507,52 +307,14 @@ export default function App() {
   spotifyStateRef.current = sp;
 
   // Spotify-Titel kommen ebenfalls in den Verlauf
-  const spotifyTrackUri = spotifyPlaying ? sp.track?.uri : undefined;
-  useEffect(() => {
+  useRecordTrack(spotifyPlaying ? sp.track?.uri : undefined, () => {
     const t = spotifyStateRef.current.track;
-    if (!spotifyTrackUri || !t) return;
-    const track: Track = {
-      id: `s-${Date.now().toString(36)}`,
-      artist: t.artists.join(', '),
-      title: t.name,
-      album: t.album || null,
-      cover: t.cover,
-      station: 'Spotify',
-      time: new Date().toISOString(),
-    };
-    setHistory((list) => (list[0] && sameTrack(list[0], track) ? list : [track, ...list].slice(0, MAX_HISTORY)));
-  }, [spotifyTrackUri]);
+    return t
+      ? { id: `s-${Date.now().toString(36)}`, artist: t.artists.join(', '), title: t.name, album: t.album || null, cover: t.cover, station: 'Spotify', time: new Date().toISOString() }
+      : null;
+  }, setHistory);
 
-  const spotifyNowPlaying: NowPlaying | null = sp.active && sp.track
-    ? {
-        raw: sp.track.uri,
-        kind: 'music',
-        artist: sp.track.artists.join(', '),
-        title: sp.track.name,
-        album: sp.track.album || null,
-        cover: sp.track.cover,
-      }
-    : null;
-
-  const spotifyStatusText = !prefs.spotify.enabled
-    ? 'Spotify aus'
-    : spotifyPlaying
-      ? 'Spotify läuft'
-      : sp.active
-        ? 'Pausiert'
-        : sp.connected
-          ? 'Bereit für Spotify'
-          : sp.process.error
-            ? 'Fehler'
-            : 'Startet …';
-  const spotifyStatusClass: PlayerStatus = spotifyPlaying
-    ? 'playing'
-    : sp.process.error && !sp.process.running
-      ? 'error'
-      : prefs.spotify.enabled && !sp.connected
-        ? 'loading'
-        : 'idle';
-
+  const spotifyV = spotifyView(sp, prefs.spotify.enabled);
   // --- Bluetooth-Empfang -------------------------------------------------------------
 
   const bt = useBluetooth(prefs.bluetooth.enabled && prefs.tabs.bluetooth, settingsLoaded);
@@ -593,48 +355,21 @@ export default function App() {
 
   // Bluetooth-Titel in den Verlauf
   const btTrackKey = btMedia?.playing && btMedia.title ? `${btMedia.artist}|${btMedia.title}` : null;
-  useEffect(() => {
-    if (!btTrackKey || !btMedia) return;
-    const track: Track = {
-      id: `b-${Date.now().toString(36)}`,
-      artist: btMedia.artist,
-      title: btMedia.title,
-      album: btMedia.album || null,
-      cover: null, // Bilder vom Handy sind nur Datenblöcke – nicht im Verlauf speichern
-      station: `Bluetooth (${btDevice?.name ?? 'Handy'})`,
-      time: new Date().toISOString(),
-    };
-    setHistory((list) => (list[0] && sameTrack(list[0], track) ? list : [track, ...list].slice(0, MAX_HISTORY)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [btTrackKey]);
+  useRecordTrack(btTrackKey, () =>
+    btMedia
+      ? {
+          id: `b-${Date.now().toString(36)}`,
+          artist: btMedia.artist,
+          title: btMedia.title,
+          album: btMedia.album || null,
+          cover: null, // Bilder vom Handy sind nur Datenblöcke – nicht im Verlauf speichern
+          station: `Bluetooth (${btDevice?.name ?? 'Handy'})`,
+          time: new Date().toISOString(),
+        }
+      : null,
+  setHistory);
 
-  const btNowPlaying: NowPlaying | null = btMedia?.title
-    ? {
-        raw: `${btMedia.artist} - ${btMedia.title}`,
-        kind: 'music',
-        artist: btMedia.artist,
-        title: btMedia.title,
-        album: btMedia.album || null,
-        cover: btMedia.cover,
-      }
-    : null;
-  const btStation: Station = { id: 'bluetooth', name: btDevice ? `Bluetooth · ${btDevice.name}` : 'Bluetooth', url: '' };
-  const btStatusText = !prefs.bluetooth.enabled
-    ? 'Bluetooth aus'
-    : btDevice
-      ? btPlaying
-        ? 'Bluetooth läuft'
-        : 'Pausiert'
-      : bt.state.ready
-        ? 'Bereit für Bluetooth'
-        : 'Startet …';
-  const btStatusClass: PlayerStatus = btDevice
-    ? btPlaying
-      ? 'playing'
-      : 'idle'
-    : prefs.bluetooth.enabled && !bt.state.ready
-      ? 'loading'
-      : 'idle';
+  const btV = bluetoothView(bt.state, btDevice, prefs.bluetooth.enabled);
 
   // --- AirPlay ------------------------------------------------------------------------
 
@@ -670,50 +405,21 @@ export default function App() {
 
   // AirPlay-Titel in den Verlauf
   const apTrackKey = apPlaying && ap.state.title ? `${ap.state.artist}|${ap.state.title}` : null;
-  useEffect(() => {
-    if (!apTrackKey || !ap.state.title) return;
-    const track: Track = {
-      id: `a-${Date.now().toString(36)}`,
-      artist: ap.state.artist ?? '',
-      title: ap.state.title,
-      album: ap.state.album,
-      cover: null, // Cover vom iPhone sind Datenblöcke – nicht im Verlauf speichern
-      station: `AirPlay (${ap.state.client ?? 'iPhone'})`,
-      time: new Date().toISOString(),
-    };
-    setHistory((list) => (list[0] && sameTrack(list[0], track) ? list : [track, ...list].slice(0, MAX_HISTORY)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apTrackKey]);
+  useRecordTrack(apTrackKey, () =>
+    ap.state.title
+      ? {
+          id: `a-${Date.now().toString(36)}`,
+          artist: ap.state.artist ?? '',
+          title: ap.state.title,
+          album: ap.state.album,
+          cover: null, // Cover vom iPhone sind Datenblöcke – nicht im Verlauf speichern
+          station: `AirPlay (${ap.state.client ?? 'iPhone'})`,
+          time: new Date().toISOString(),
+        }
+      : null,
+  setHistory);
 
-  const apNowPlaying: NowPlaying | null = ap.state.title
-    ? {
-        raw: `${ap.state.artist ?? ''} - ${ap.state.title}`,
-        kind: 'music',
-        artist: ap.state.artist,
-        title: ap.state.title,
-        album: ap.state.album,
-        cover: ap.state.cover,
-      }
-    : null;
-  const apStation: Station = { id: 'airplay', name: ap.state.client ? `AirPlay · ${ap.state.client}` : 'AirPlay', url: '' };
-  const apStatusText = !prefs.airplay.enabled
-    ? 'AirPlay aus'
-    : apSession
-      ? apPlaying
-        ? 'AirPlay läuft'
-        : 'Pausiert'
-      : ap.state.error
-        ? 'Fehler'
-        : ap.state.running
-          ? 'Bereit für AirPlay'
-          : 'Startet …';
-  const apStatusClass: PlayerStatus = apPlaying
-    ? 'playing'
-    : ap.state.error
-      ? 'error'
-      : prefs.airplay.enabled && !ap.state.running
-        ? 'loading'
-        : 'idle';
+  const apV = airplayView(ap.state, prefs.airplay.enabled);
 
   // --- YouTube ---------------------------------------------------------------------------
 
@@ -758,44 +464,21 @@ export default function App() {
 
   // YouTube-Titel in den Verlauf
   const ytTrackKey = ytNow && yt.state.status === 'playing' ? `${ytNow.item.id}|${ytNow.title}` : null;
-  useEffect(() => {
-    if (!ytTrackKey || !ytNow) return;
-    const track: Track = {
-      id: `y-${Date.now().toString(36)}`,
-      artist: ytNow.channel ?? '',
-      title: ytNow.title,
-      album: ytNow.item.from ?? null,
-      cover: ytNow.fallbackCover ?? ytNow.cover,
-      station: 'YouTube',
-      time: new Date().toISOString(),
-    };
-    setHistory((list) => (list[0] && sameTrack(list[0], track) ? list : [track, ...list].slice(0, MAX_HISTORY)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ytTrackKey]);
+  useRecordTrack(ytTrackKey, () =>
+    ytNow
+      ? {
+          id: `y-${Date.now().toString(36)}`,
+          artist: ytNow.channel ?? '',
+          title: ytNow.title,
+          album: ytNow.item.from ?? null,
+          cover: ytNow.fallbackCover ?? ytNow.cover,
+          station: 'YouTube',
+          time: new Date().toISOString(),
+        }
+      : null,
+  setHistory);
 
-  const ytNowPlaying: NowPlaying | null = ytNow
-    ? {
-        raw: ytNow.title,
-        kind: 'music',
-        artist: ytNow.channel,
-        title: ytNow.title,
-        album: ytNow.item.from ?? null,
-        cover: ytNow.cover,
-      }
-    : null;
-  const ytStation: Station = { id: 'youtube', name: ytNow?.item.from ? `YouTube · ${ytNow.item.from}` : 'YouTube', url: '' };
-  const ytStatusText =
-    yt.state.status === 'loading'
-      ? 'Lade von YouTube …'
-      : yt.state.status === 'error'
-        ? 'YouTube-Fehler'
-        : ytPlaying
-          ? ytNow?.live
-            ? 'YouTube live'
-            : 'YouTube läuft'
-          : ytNow
-            ? 'Pausiert'
-            : 'Bereit';
+  const ytV = youtubeView(yt.state);
 
   // --- Was zeigt die Mitte? ------------------------------------------------------------
   // Die zuletzt gestartete Quelle, solange sie aktiv ist – sonst die des offenen Reiters.
@@ -867,74 +550,17 @@ export default function App() {
         },
       };
 
-  // --- Vollbild ------------------------------------------------------------------
-
-  useEffect(() => {
-    api.setFullScreen(fullscreen).catch(() => {});
-  }, [fullscreen]);
-
-  useEffect(() => {
-    // Im Browser kann der Nutzer das Vollbild auch selbst verlassen
-    const onChange = () => !document.fullscreenElement && !isDesktop && setFullscreen(false);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-
-  // --- Tastatur ------------------------------------------------------------------
-
-  // Der Handler wird weiter unten bei jedem Render neu gesetzt, damit er immer den aktuellen Zustand sieht
-  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => keyRef.current(e);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   // --- Windows-Medienanzeige (Medientasten, Overlay) -------------------------
 
-  const viewStation = onApTab ? apStation : onBtTab ? btStation : onSpotifyTab ? SPOTIFY_STATION : onYtTab ? ytStation : current;
-  const viewNowPlaying = onApTab ? apNowPlaying : onBtTab ? btNowPlaying : onSpotifyTab ? spotifyNowPlaying : onYtTab ? ytNowPlaying : nowPlaying;
-  const viewStatus: PlayerStatus = onApTab
-    ? apStatusClass
-    : onBtTab
-      ? btStatusClass
-      : onSpotifyTab
-        ? spotifyPlaying
-          ? 'playing'
-          : 'idle'
-        : onYtTab
-          ? yt.state.status
-          : status;
+  const viewSource = onApTab ? apV : onBtTab ? btV : onSpotifyTab ? spotifyV : onYtTab ? ytV : null;
+  const viewStation = viewSource ? viewSource.station : current;
+  const viewNowPlaying = viewSource ? viewSource.nowPlaying : nowPlaying;
+  // Spotify zeigt nur „spielt“ oder nicht – Verbindungsstatus steht im eigenen Statusfeld
+  const viewStatus: PlayerStatus = onSpotifyTab ? (spotifyPlaying ? 'playing' : 'idle') : viewSource ? viewSource.status : status;
 
-  useEffect(() => {
-    if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: viewNowPlaying?.title ?? viewStation?.name ?? 'Radio',
-      artist: viewNowPlaying?.artist ?? (viewNowPlaying?.title ? '' : viewStation?.name ?? ''),
-      album: viewNowPlaying?.album ?? viewStation?.name ?? '',
-      artwork: viewNowPlaying?.cover?.startsWith('http') ? [{ src: viewNowPlaying.cover, sizes: '600x600', type: 'image/jpeg' }] : [],
-    });
-  }, [viewNowPlaying?.title, viewNowPlaying?.artist, viewNowPlaying?.album, viewNowPlaying?.cover, viewStation?.name]);
-
-  useEffect(() => {
-    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = ui.isPlaying ? 'playing' : 'paused';
-  }, [ui.isPlaying]);
-
+  useMediaSession(viewNowPlaying, viewStation, ui);
   const uiRef = useRef(ui);
   uiRef.current = ui;
-  useEffect(() => {
-    if (!('mediaSession' in navigator)) return;
-    // play/pause gezielt setzen statt umschalten – sonst kann ein doppelt ankommendes
-    // Signal (Medientaste, Windows-Overlay) die Wiedergabe ungewollt beenden
-    const handlers: [MediaSessionAction, () => void][] = [
-      ['play', () => !uiRef.current.isPlaying && uiRef.current.toggle()],
-      ['pause', () => uiRef.current.isPlaying && uiRef.current.toggle()],
-      ['stop', () => uiRef.current.isPlaying && uiRef.current.toggle()],
-      ['previoustrack', () => uiRef.current.prev()],
-      ['nexttrack', () => uiRef.current.next()],
-    ];
-    for (const [action, handler] of handlers) navigator.mediaSession.setActionHandler(action, handler);
-  }, []);
 
   // --- Fernbedienung (Handy) -------------------------------------------------------------
 
@@ -1031,7 +657,21 @@ export default function App() {
     wishAdded: () => {
       if (!anythingActive) startQueueRef.current();
     },
-    edit: (action, value) => editFromRemote(action, value),
+    edit: (action, value) =>
+      editFromRemote(
+        {
+          stations,
+          saveStation,
+          deleteStation,
+          moveStation,
+          addYoutube,
+          renameYoutube: (id, title) => setYoutubeItems((list) => list.map((i) => (i.id === id ? { ...i, title } : i))),
+          deleteYoutube,
+          moveYoutube,
+        },
+        action,
+        value,
+      ),
     // Admin im Room: Empfang am Host schalten – beim Einschalten auch den Reiter einblenden
     setReceiver: (kind, enabled) =>
       setPrefs((p) => ({
@@ -1042,97 +682,11 @@ export default function App() {
   });
 
   // --- YouTube-Queue: was oben steht, spielt ------------------------------------------------
-  const queue = remote.wishes;
-  const track = topTrack(queue);
-  const upcoming = nextTrack(queue);
-  const [queueWanted, setQueueWanted] = useState(false);
-  ytEndedRef.current = remote.consume;
-  const hostClient = { clientId: 'host', name: roomName, admin: true };
-  const queueNow = ytNow && track && ytNow.item.id === track.id ? (ytPlaying ? 'playing' : 'paused') : null;
-
-  const startQueue = () => {
-    if (ytNow && track && ytNow.item.id === track.id && !ytPlaying) yt.resume();
-    else setQueueWanted(true);
-  };
+  const { queue, queueNow, startQueue, playTop } = useYouTubeQueue(yt, remote);
   const startQueueRef = useRef(startQueue);
   startQueueRef.current = startQueue;
-
-  // Oben hat sich etwas geändert: das Neue spielen (pausiert erst beim nächsten Play), Queue leer: aufhören
-  useEffect(() => {
-    if (!queueWanted && !ytNow) return;
-    if (!queue.length) {
-      if (ytNow) yt.stop();
-      setQueueWanted(false);
-      return;
-    }
-    if (!track || ytNow?.item.id === track.id) return;
-    if (queueWanted || ytPlaying) {
-      yt.play(track);
-      setQueueWanted(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queueWanted, !!ytNow, ytPlaying, track?.id, queue.length]);
-
-  useEffect(() => {
-    if (upcoming && (ytNow || queueWanted)) yt.prefetch(upcoming.url);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [upcoming?.url]);
-
-  // Playlists in der Queue: Songs laden (zum Spielen, Aufklappen und Verschieben)
-  const missingSongs = queue.find((w) => isPlaylist(w) && !w.entries);
-  useEffect(() => {
-    if (!missingSongs) return;
-    const url = missingSongs.url ?? `https://www.youtube.com/playlist?list=${missingSongs.videoId}`;
-    api
-      .youtubeInfo(url)
-      .then((info) => remote.setEntries(missingSongs.id, info.entries))
-      .catch(() => remote.removeWish(missingSongs.id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [missingSongs?.id]);
-
-  /** Admin im Room: Sender und gespeicherte YouTube-Einträge des Hosts bearbeiten */
-  const editFromRemote = (action: string, value: unknown): string | null | Promise<string | null> => {
-    const v = (value ?? {}) as Record<string, unknown>;
-    const text = (x: unknown, max: number) => (typeof x === 'string' ? x.trim().slice(0, max) : '');
-    switch (action) {
-      case 'stationSave': {
-        const name = text(v.name, 80);
-        const url = text(v.url, 2000);
-        if (!name || !/^https?:\/\//i.test(url)) return 'Name und Stream-Adresse (http/https) angeben.';
-        const target = stations.find((st) => st.id === v.id) ?? null;
-        // Hochgeladene Logos (data:) bekommt der Room nicht zu sehen – leer heißt dann „behalten“
-        const logo = text(v.logo, 2000) || (target?.logo?.startsWith('data:') ? target.logo : '');
-        if (logo && !/^(https?:|data:image\/)/.test(logo)) return 'Ungültiges Logo.';
-        saveStation({ name, url, logo: logo || undefined }, target);
-        return null;
-      }
-      case 'stationDelete':
-        deleteStation(String(value));
-        return null;
-      case 'stationMove':
-        moveStation(String(v.id), Number(v.to));
-        return null;
-      case 'youtubeAdd':
-        return addYoutube(text(v.url, 500)).then(
-          () => null,
-          (err: Error) => err.message,
-        );
-      case 'youtubeRename': {
-        const title = text(v.title, 200);
-        if (!title) return 'Name fehlt.';
-        setYoutubeItems((list) => list.map((i) => (i.id === v.id ? { ...i, title } : i)));
-        return null;
-      }
-      case 'youtubeDelete':
-        deleteYoutube(String(value));
-        return null;
-      case 'youtubeMove':
-        moveYoutube(String(v.id), Number(v.to));
-        return null;
-      default:
-        return 'Unbekannter Befehl.';
-    }
-  };
+  ytEndedRef.current = remote.consume;
+  const hostClient = { clientId: 'host', name: roomName, admin: true };
 
   // --- Rooms: dieses Radio hört bei einem anderen mit oder steuert es ------------------------
 
@@ -1198,7 +752,7 @@ export default function App() {
   const volumeStyle = { '--fill': `${ui.volume * 100}%` } as CSSProperties;
   const visibleTabs = TABS.filter((t) => prefs.tabs[t.id]);
 
-  keyRef.current = (e: KeyboardEvent) => {
+  useWindowKeys((e: KeyboardEvent) => {
     if (editing || settingsOpen || storeOpen || remoteOpen || roomOpen || joined) return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     const key = e.key;
@@ -1248,7 +802,7 @@ export default function App() {
       e.preventDefault();
       selectStation(stations[Number(key) - 1].id);
     }
-  };
+  });
   const theme = prefs.theme;
   const deck = DECK_THEMES.includes(theme) ? deckStations(stations, currentId) : [];
   const analyser = graph?.analyser ?? null;
@@ -1266,13 +820,7 @@ export default function App() {
         ref={audioRef}
         preload="none"
         crossOrigin={isDesktop ? 'anonymous' : undefined}
-        onPlaying={() => {
-          retriesRef.current = 0;
-          setStatus('playing');
-        }}
-        onWaiting={() => wantPlay && setStatus('loading')}
-        onError={handleStreamFailure}
-        onEnded={handleStreamFailure}
+        {...radio.audioEvents}
       />
       <audio ref={ytAudioRef} preload="none" crossOrigin={isDesktop ? 'anonymous' : undefined} />
 
@@ -1321,11 +869,11 @@ export default function App() {
                 now,
               );
               if (error) throw new Error(error);
-              if (now) setQueueWanted(true);
+              if (now) playTop();
             }}
             onSave={addYoutube}
             onPlay={(item) => {
-              if (!remote.queueItem(item, hostClient, true)) setQueueWanted(true);
+              if (!remote.queueItem(item, hostClient, true)) playTop();
             }}
             onQueue={(item) => remote.queueItem(item, hostClient)}
             onRename={(id, title) => setYoutubeItems((list) => list.map((i) => (i.id === id ? { ...i, title } : i)))}
@@ -1389,27 +937,27 @@ export default function App() {
           {onYtTab ? (
             <div className={`status-chip ${yt.state.status}`}>
               <span className={`live-dot ${yt.state.status}`} />
-              {ytStatusText}
+              {ytV.statusText}
             </div>
           ) : onApTab ? (
-            <div className={`status-chip ${apStatusClass}`}>
-              <span className={`live-dot ${apStatusClass}`} />
-              {apStatusText}
+            <div className={`status-chip ${apV.status}`}>
+              <span className={`live-dot ${apV.status}`} />
+              {apV.statusText}
             </div>
           ) : onBtTab ? (
-            <div className={`status-chip ${btStatusClass}`}>
-              <span className={`live-dot ${btStatusClass}`} />
-              {btStatusText}
+            <div className={`status-chip ${btV.status}`}>
+              <span className={`live-dot ${btV.status}`} />
+              {btV.statusText}
             </div>
           ) : onSpotifyTab ? (
-            <div className={`status-chip ${spotifyStatusClass}`}>
-              <span className={`live-dot ${spotifyStatusClass}`} />
-              {spotifyStatusText}
+            <div className={`status-chip ${spotifyV.status}`}>
+              <span className={`live-dot ${spotifyV.status}`} />
+              {spotifyV.statusText}
             </div>
           ) : (
             <div className={`status-chip ${status}`}>
               <span className={`live-dot ${status}`} />
-              {status === 'error' && retriesRef.current < MAX_RETRIES && wantPlay
+              {radio.retrying
                 ? 'Verbindung verloren – neuer Versuch …'
                 : STATUS_TEXT[status]}
             </div>
